@@ -16,6 +16,7 @@ const refs = {
   vehicleZone: document.querySelector("#vehicleZone"),
   vehiclePreview: document.querySelector("#vehiclePreview"),
   brandGrid: document.querySelector("#brandGrid"),
+  vehicleModelSummary: document.querySelector("#vehicleModelSummary"),
   accessoryList: document.querySelector("#accessoryList"),
   addAccessoryBtn: document.querySelector("#addAccessoryBtn"),
   saveSetBtn: document.querySelector("#saveSetBtn"),
@@ -27,17 +28,28 @@ const refs = {
   closeCameraBtn: document.querySelector("#closeCameraBtn"),
   cancelCameraBtn: document.querySelector("#cancelCameraBtn"),
   shutterCameraBtn: document.querySelector("#shutterCameraBtn"),
+  modelOverlay: document.querySelector("#modelOverlay"),
+  modelOverlayBrand: document.querySelector("#modelOverlayBrand"),
+  modelForm: document.querySelector("#modelForm"),
+  vehicleModelInput: document.querySelector("#vehicleModelInput"),
+  recentModelList: document.querySelector("#recentModelList"),
+  closeModelBtn: document.querySelector("#closeModelBtn"),
+  cancelModelBtn: document.querySelector("#cancelModelBtn"),
 };
 
 const state = {
   brands: [],
   serviceItems: [],
   brandId: "",
+  vehicleModel: "",
   vehiclePhotos: [],
   accessoryEntries: [],
   cameraTarget: null,
   cameraStream: null,
+  pendingBrandId: "",
 };
+
+const RECENT_MODELS_KEY = "garage-photo-workbench.recent-models";
 
 function createAccessoryEntry() {
   return {
@@ -61,7 +73,7 @@ function isVehicleReady() {
 }
 
 function isBrandReady() {
-  return Boolean(state.brandId);
+  return Boolean(state.brandId && state.vehicleModel);
 }
 
 function isAccessoryReady() {
@@ -86,6 +98,70 @@ function createAutoReference() {
 
 function clearAssets(list) {
   list.forEach((asset) => revokeDraftAsset(asset));
+}
+
+function normalizeModelName(value) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function getBrandById(brandId) {
+  return state.brands.find((brand) => brand.id === brandId) || null;
+}
+
+function loadRecentModels() {
+  try {
+    const raw = window.localStorage.getItem(RECENT_MODELS_KEY);
+    const list = JSON.parse(raw || "[]");
+    if (!Array.isArray(list)) {
+      return [];
+    }
+    return list.filter((item) => item && typeof item.model === "string").slice(0, 20);
+  } catch (_error) {
+    return [];
+  }
+}
+
+function saveRecentModels(list) {
+  try {
+    window.localStorage.setItem(RECENT_MODELS_KEY, JSON.stringify(list.slice(0, 20)));
+  } catch (_error) {
+    // Ignore storage errors and continue without recent history.
+  }
+}
+
+function pushRecentModel(brandId, model) {
+  const normalized = normalizeModelName(model);
+  if (!brandId || !normalized) {
+    return;
+  }
+
+  const brand = getBrandById(brandId);
+  const next = [
+    {
+      brandId,
+      brandName: brand?.name || brandId,
+      model: normalized,
+    },
+    ...loadRecentModels().filter((item) => (
+      `${item.brandId}::${item.model}`.toLowerCase() !== `${brandId}::${normalized}`.toLowerCase()
+    )),
+  ];
+  saveRecentModels(next);
+}
+
+function getRecentModelsForBrand(brandId) {
+  const sameBrand = [];
+  const otherBrands = [];
+
+  loadRecentModels().forEach((item) => {
+    if (item.brandId === brandId) {
+      sameBrand.push(item);
+      return;
+    }
+    otherBrands.push(item);
+  });
+
+  return [...sameBrand, ...otherBrands].slice(0, 20);
 }
 
 function isDirectCameraMode() {
@@ -198,20 +274,103 @@ function renderVehiclePreview() {
   });
 }
 
+function renderVehicleModelSummary() {
+  const brand = getBrandById(state.brandId);
+  const hasModel = Boolean(state.vehicleModel);
+  refs.vehicleModelSummary.hidden = !hasModel;
+  if (!hasModel) {
+    refs.vehicleModelSummary.textContent = "";
+    return;
+  }
+  refs.vehicleModelSummary.textContent = `已選車型：${brand?.name || state.brandId} · ${state.vehicleModel}`;
+  refs.vehicleModelSummary.className = "status-text is-success";
+}
+
+function renderRecentModelList(brandId) {
+  const items = getRecentModelsForBrand(brandId);
+  if (!items.length) {
+    refs.recentModelList.innerHTML = `
+      <div class="empty-state">
+        <strong>暫時沒有最近型號</strong>
+        <p class="muted-copy">輸入一次後，之後會顯示在這裡。</p>
+      </div>
+    `;
+    return;
+  }
+
+  refs.recentModelList.innerHTML = items.map((item) => `
+    <button class="choice-button" type="button" data-recent-model="${item.model}">
+      <strong>${item.model}</strong>
+      <span>${item.brandName || item.brandId || "-"}</span>
+    </button>
+  `).join("");
+
+  refs.recentModelList.querySelectorAll("[data-recent-model]").forEach((button) => {
+    button.addEventListener("click", () => {
+      refs.vehicleModelInput.value = button.dataset.recentModel;
+      refs.vehicleModelInput.focus();
+      refs.vehicleModelInput.select();
+    });
+  });
+}
+
+function openModelOverlay(brandId) {
+  state.pendingBrandId = brandId;
+  const brand = getBrandById(brandId);
+  refs.modelOverlayBrand.textContent = brand?.name || brandId;
+  refs.vehicleModelInput.value = state.brandId === brandId ? state.vehicleModel : "";
+  renderRecentModelList(brandId);
+  refs.modelOverlay.hidden = false;
+  document.body.classList.add("model-open");
+  window.setTimeout(() => {
+    refs.vehicleModelInput.focus();
+    refs.vehicleModelInput.select();
+  }, 20);
+}
+
+function closeModelOverlay() {
+  refs.modelOverlay.hidden = true;
+  document.body.classList.remove("model-open");
+  state.pendingBrandId = "";
+  refs.vehicleModelInput.value = "";
+}
+
+function handleModelSubmit(event) {
+  event.preventDefault();
+  const model = normalizeModelName(refs.vehicleModelInput.value);
+  if (!state.pendingBrandId) {
+    closeModelOverlay();
+    return;
+  }
+  if (!model) {
+    setStatus("請先輸入車輛型號。", "danger");
+    refs.vehicleModelInput.focus();
+    return;
+  }
+
+  state.brandId = state.pendingBrandId;
+  state.vehicleModel = model;
+  pushRecentModel(state.brandId, state.vehicleModel);
+  renderBrands();
+  setStatus(`已選擇 ${getBrandById(state.brandId)?.name || state.brandId} · ${state.vehicleModel}`, "success");
+  closeModelOverlay();
+}
+
 function renderBrands() {
   refs.brandGrid.innerHTML = state.brands.map((brand) => `
     <button class="choice-button ${state.brandId === brand.id ? "is-selected" : ""}" type="button" data-brand-id="${brand.id}">
       <strong>${brand.name}</strong>
-      <span>此案件車輛品牌</span>
+      <span>${state.brandId === brand.id && state.vehicleModel ? state.vehicleModel : "此案件車輛品牌"}</span>
     </button>
   `).join("");
 
   refs.brandGrid.querySelectorAll("[data-brand-id]").forEach((button) => {
     button.addEventListener("click", () => {
-      state.brandId = button.dataset.brandId;
-      renderBrands();
+      openModelOverlay(button.dataset.brandId);
     });
   });
+
+  renderVehicleModelSummary();
 }
 
 function renderAccessoryPreview(entry) {
@@ -556,7 +715,7 @@ function validateBeforeSave() {
     return "請先加入至少 1 張車輛照。";
   }
   if (!isBrandReady()) {
-    return "請先選擇車輛品牌。";
+    return "請先選擇車輛品牌並輸入車輛型號。";
   }
   if (!state.accessoryEntries.length) {
     return "請至少加入 1 個配件或維修項目。";
@@ -573,7 +732,9 @@ function resetForm() {
   state.accessoryEntries.forEach((entry) => clearAssets(entry.photos));
 
   refs.vehicleInput.value = "";
+  refs.vehicleLibraryInput.value = "";
   state.brandId = "";
+  state.vehicleModel = "";
   state.vehiclePhotos = [];
   state.accessoryEntries = [createAccessoryEntry()];
   renderVehiclePreview();
@@ -588,6 +749,7 @@ function collectPayload() {
     captureDate: todayLocal(),
     notes: "",
     brandId: state.brandId,
+    vehicleModel: state.vehicleModel,
     vehiclePhotos: state.vehiclePhotos,
     accessoryEntries: state.accessoryEntries.map((entry) => ({
       itemId: entry.itemId,
@@ -659,6 +821,14 @@ function bindEvents() {
   refs.cameraOverlay.addEventListener("click", async (event) => {
     if (event.target === refs.cameraOverlay) {
       await closeCameraOverlay();
+    }
+  });
+  refs.modelForm.addEventListener("submit", handleModelSubmit);
+  refs.closeModelBtn.addEventListener("click", closeModelOverlay);
+  refs.cancelModelBtn.addEventListener("click", closeModelOverlay);
+  refs.modelOverlay.addEventListener("click", (event) => {
+    if (event.target === refs.modelOverlay) {
+      closeModelOverlay();
     }
   });
 

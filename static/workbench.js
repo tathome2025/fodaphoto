@@ -144,27 +144,79 @@ async function readImageSize(source) {
   };
 }
 
+async function rasterizePreviewFromFile(file) {
+  if (typeof createImageBitmap !== "function") {
+    throw new Error("瀏覽器不支援 createImageBitmap");
+  }
+
+  const bitmap = await createImageBitmap(file);
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("無法建立圖片預覽 canvas");
+    }
+    context.drawImage(bitmap, 0, 0);
+    return {
+      previewUrl: canvas.toDataURL("image/jpeg", 0.92),
+      width: canvas.width,
+      height: canvas.height,
+    };
+  } finally {
+    if (typeof bitmap.close === "function") {
+      bitmap.close();
+    }
+  }
+}
+
 export async function fileToDraftAsset(file) {
+  const fileName = file.name || `capture-${uid()}.jpg`;
+  const mimeType = file.type || "image/jpeg";
+  const localId = uid();
   const previewUrl = URL.createObjectURL(file);
+
   try {
     const dimensions = await readImageSize(previewUrl);
     return {
-      localId: uid(),
+      localId,
       file,
       previewUrl,
-      fileName: file.name || `capture-${uid()}.jpg`,
-      mimeType: file.type || "image/jpeg",
+      fileName,
+      mimeType,
       width: dimensions.width,
       height: dimensions.height,
     };
   } catch (error) {
-    URL.revokeObjectURL(previewUrl);
-    throw error;
+    try {
+      const rendered = await rasterizePreviewFromFile(file);
+      URL.revokeObjectURL(previewUrl);
+      return {
+        localId,
+        file,
+        previewUrl: rendered.previewUrl,
+        fileName,
+        mimeType,
+        width: rendered.width,
+        height: rendered.height,
+      };
+    } catch (_fallbackError) {
+      return {
+        localId,
+        file,
+        previewUrl,
+        fileName,
+        mimeType,
+        width: 0,
+        height: 0,
+      };
+    }
   }
 }
 
 export function revokeDraftAsset(asset) {
-  if (asset?.previewUrl) {
+  if (asset?.previewUrl?.startsWith("blob:")) {
     URL.revokeObjectURL(asset.previewUrl);
   }
 }
@@ -352,7 +404,7 @@ export async function fetchCaptureSetsByDate(date) {
 
   const { data: sets, error: setError } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, created_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at")
     .eq("capture_date", date)
     .order("created_at", { ascending: false });
 
@@ -386,6 +438,7 @@ export async function fetchCaptureSetsByDate(date) {
       captureDate: captureSet.capture_date,
       notes: captureSet.notes,
       brandId: captureSet.brand_id,
+      vehicleModel: captureSet.vehicle_model || "",
       brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
       createdAt: captureSet.created_at,
       serviceItemLookup: lookups.serviceItemLookup,
@@ -475,6 +528,7 @@ export async function createCaptureSet(payload) {
     capture_date: captureDate,
     notes: payload.notes || "",
     brand_id: payload.brandId,
+    vehicle_model: payload.vehicleModel || "",
     created_by: user.id,
   });
 
@@ -531,6 +585,7 @@ export async function createCaptureSet(payload) {
     id: captureSetId,
     captureDate,
     reference: payload.reference,
+    vehicleModel: payload.vehicleModel || "",
   };
 }
 
@@ -550,7 +605,7 @@ export async function fetchPhotoDetail(photoId) {
 
   const { data: captureSet, error: setError } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, created_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at")
     .eq("id", photo.capture_set_id)
     .single();
 
@@ -578,6 +633,7 @@ export async function fetchPhotoDetail(photoId) {
       captureDate: captureSet.capture_date,
       notes: captureSet.notes,
       brandId: captureSet.brand_id,
+      vehicleModel: captureSet.vehicle_model || "",
       brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
       createdAt: captureSet.created_at,
       accessoryEntries: [...new Set((setPhotos || []).map((item) => item.service_item_id).filter(Boolean))].map((itemId) => ({

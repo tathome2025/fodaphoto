@@ -214,7 +214,7 @@ async function renderCurrentDate() {
       <section class="set-card">
         <div class="set-head">
           <div>
-            <h2>${captureSet.brandName} · ${captureSet.reference}</h2>
+            <h2>${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""} · ${captureSet.reference}</h2>
             <p>${captureSet.notes || "未填整組備註"}</p>
           </div>
           <div class="chip-row">

@@ -47,6 +47,10 @@ body.camera-open {
   overflow: hidden;
 }
 
+body.model-open {
+  overflow: hidden;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -853,6 +857,54 @@ button {
 
 .camera-actions .primary-button,
 .camera-actions .secondary-button {
+  flex: 1 1 auto;
+}
+
+.model-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  align-items: end;
+  padding: 0.8rem;
+  background: rgba(0, 0, 0, 0.76);
+}
+
+.model-shell {
+  display: grid;
+  gap: 0.9rem;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 1rem;
+  border: 1px solid var(--line-strong);
+  background: rgba(15, 17, 20, 0.98);
+  box-shadow: var(--shadow-lg);
+}
+
+.model-head,
+.model-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.model-form,
+.model-recent-block {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.recent-model-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.recent-model-grid .choice-button {
+  min-height: 3rem;
+}
+
+.model-actions .primary-button,
+.model-actions .secondary-button {
   flex: 1 1 auto;
 }
 
