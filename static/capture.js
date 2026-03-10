@@ -78,6 +78,35 @@ function clearAssets(list) {
   list.forEach((asset) => revokeDraftAsset(asset));
 }
 
+function getPreviewFitClass(photo) {
+  if (!photo?.width || !photo?.height) {
+    return "is-square";
+  }
+
+  const ratio = photo.width / photo.height;
+  if (ratio > 1.05) {
+    return "is-landscape";
+  }
+  if (ratio < 0.95) {
+    return "is-portrait";
+  }
+  return "is-square";
+}
+
+function renderUploadCover(photo, altText, removeAttr, removeValue) {
+  return `
+    <figure class="upload-cover ${getPreviewFitClass(photo)}">
+      <div class="upload-cover-frame">
+        <img src="${photo.previewUrl}" alt="${altText}">
+      </div>
+      <figcaption class="upload-cover-footer">
+        <span>${photo.fileName}</span>
+        <button class="tiny-button" type="button" ${removeAttr}="${removeValue}">移除</button>
+      </figcaption>
+    </figure>
+  `;
+}
+
 function renderVehiclePreview() {
   refs.vehicleZone.classList.toggle("has-preview", state.vehiclePhotos.length > 0);
   refs.vehicleInput.disabled = state.vehiclePhotos.length > 0;
@@ -91,15 +120,12 @@ function renderVehiclePreview() {
     return;
   }
 
-  refs.vehiclePreview.innerHTML = state.vehiclePhotos.map((photo, index) => `
-    <figure class="upload-cover">
-      <img src="${photo.previewUrl}" alt="車輛照 ${index + 1}">
-      <figcaption class="upload-cover-footer">
-        <span>${photo.fileName}</span>
-        <button class="tiny-button" type="button" data-remove-vehicle="${photo.localId}">移除</button>
-      </figcaption>
-    </figure>
-  `).join("");
+  refs.vehiclePreview.innerHTML = state.vehiclePhotos.map((photo, index) => renderUploadCover(
+    photo,
+    `車輛照 ${index + 1}`,
+    "data-remove-vehicle",
+    photo.localId
+  )).join("");
 
   refs.vehiclePreview.querySelectorAll("[data-remove-vehicle]").forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -142,15 +168,12 @@ function renderAccessoryPreview(entry) {
     `;
   }
 
-  return entry.photos.map((photo) => `
-    <figure class="upload-cover">
-      <img src="${photo.previewUrl}" alt="${photo.fileName}">
-      <figcaption class="upload-cover-footer">
-        <span>${photo.fileName}</span>
-        <button class="tiny-button" type="button" data-remove-accessory-photo="${entry.id}:${photo.localId}">移除</button>
-      </figcaption>
-    </figure>
-  `).join("");
+  return entry.photos.map((photo) => renderUploadCover(
+    photo,
+    photo.fileName,
+    "data-remove-accessory-photo",
+    `${entry.id}:${photo.localId}`
+  )).join("");
 }
 
 function renderServiceButtons(entry) {
