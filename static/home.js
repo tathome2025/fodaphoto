@@ -39,12 +39,16 @@ function setStatus(message, type) {
   }
 }
 
+function getUserLabel(user) {
+  return user?.email || user?.phone || user?.id || "-";
+}
+
 function syncUserUI(user) {
   const hasUser = Boolean(user);
   refs.authHeading.textContent = hasUser ? "已登入" : "登入";
   refs.loginForm.hidden = hasUser;
   refs.userPanel.hidden = !hasUser;
-  refs.userEmail.textContent = user?.email || "-";
+  refs.userEmail.textContent = getUserLabel(user);
 }
 
 let preserveStatusOnce = false;

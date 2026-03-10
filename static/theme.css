@@ -410,6 +410,15 @@ button {
   color: var(--success);
 }
 
+.signed-in-account {
+  color: var(--text);
+  line-height: 1.45;
+}
+
+.signed-in-account strong {
+  word-break: break-all;
+}
+
 .auth-form {
   display: grid;
   gap: 0.8rem;
