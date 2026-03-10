@@ -44,6 +44,7 @@
           </div>
         </div>
         <div class="choice-grid brand-grid" id="brandGrid"></div>
+        <p class="status-text" id="vehicleModelSummary" hidden></p>
       </section>
 
       <section class="capture-card">
@@ -72,6 +73,36 @@
         <button class="secondary-button" id="cancelCameraBtn" type="button">取消</button>
         <button class="primary-button" id="shutterCameraBtn" type="button">拍照</button>
       </div>
+    </div>
+  </div>
+
+  <div class="model-overlay" id="modelOverlay" hidden>
+    <div class="model-shell">
+      <div class="model-head">
+        <div>
+          <strong id="modelOverlayTitle">輸入車輛型號</strong>
+          <p class="muted-copy" id="modelOverlayBrand">-</p>
+        </div>
+        <button class="tiny-button" id="closeModelBtn" type="button">關閉</button>
+      </div>
+      <form class="model-form" id="modelForm">
+        <div class="field">
+          <label for="vehicleModelInput">車輛型號</label>
+          <input id="vehicleModelInput" type="text" placeholder="例如：Civic Type R">
+        </div>
+        <div class="model-recent-block">
+          <div class="section-head">
+            <div>
+              <h3>最近輸入過的型號</h3>
+            </div>
+          </div>
+          <div class="choice-grid recent-model-grid" id="recentModelList"></div>
+        </div>
+        <div class="model-actions">
+          <button class="secondary-button" id="cancelModelBtn" type="button">取消</button>
+          <button class="primary-button" id="confirmModelBtn" type="submit">確定</button>
+        </div>
+      </form>
     </div>
   </div>
 
