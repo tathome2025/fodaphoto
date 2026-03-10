@@ -18,6 +18,17 @@ const refs = {
   userEmail: document.querySelector("#userEmail"),
 };
 
+function withTimeout(promise, ms, message) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject(new Error(message));
+      }, ms);
+    }),
+  ]);
+}
+
 function setStatus(message, type) {
   refs.authStatus.hidden = !message;
   refs.authStatus.textContent = message;
@@ -60,14 +71,31 @@ async function handleLogin(event) {
     setStatus("尚未設定 Supabase。請在 .env 或 static/runtime-config.js 填入 URL 與 Publishable Key。", "danger");
     return;
   }
+  if (!refs.emailInput.value.trim() || !refs.passwordInput.value) {
+    setStatus("請先輸入 Email 和 Password。", "danger");
+    return;
+  }
 
   refs.loginBtn.disabled = true;
   setStatus("登入中...", "");
 
   try {
-    await signInWithPassword(refs.emailInput.value.trim(), refs.passwordInput.value);
+    const session = await withTimeout(
+      signInWithPassword(refs.emailInput.value.trim(), refs.passwordInput.value),
+      15000,
+      "登入逾時，請檢查 Supabase 設定或網絡連線。"
+    );
     refs.passwordInput.value = "";
-    await refreshUser();
+    if (session?.user) {
+      syncUserUI(session.user);
+      setStatus(`目前已登入：${session.user.email}`, "success");
+      return;
+    }
+    await withTimeout(
+      refreshUser(),
+      8000,
+      "登入完成，但帳號狀態讀取逾時。請重新整理頁面確認。"
+    );
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
@@ -78,7 +106,11 @@ async function handleLogin(event) {
 async function handleLogout() {
   refs.logoutBtn.disabled = true;
   try {
-    await signOut();
+    await withTimeout(
+      signOut(),
+      10000,
+      "登出逾時，請重新整理頁面再試。"
+    );
     await refreshUser();
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
