@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 
@@ -13,6 +14,13 @@ DEFAULTS = {
     "VITE_SUPABASE_PUBLISHABLE_KEY": "",
     "VITE_SUPABASE_STORAGE_BUCKET": "garage-originals",
     "VITE_APP_TIMEZONE": "Asia/Hong_Kong",
+}
+
+RUNTIME_KEY_MAP = {
+    "VITE_SUPABASE_URL": "supabaseUrl",
+    "VITE_SUPABASE_PUBLISHABLE_KEY": "supabasePublishableKey",
+    "VITE_SUPABASE_STORAGE_BUCKET": "storageBucket",
+    "VITE_APP_TIMEZONE": "timezone",
 }
 
 
@@ -32,15 +40,34 @@ def parse_env_file(path: Path) -> dict[str, str]:
     return values
 
 
+def parse_runtime_config(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+
+    content = path.read_text(encoding="utf-8")
+    pairs = re.findall(r"(\w+):\s*\"((?:\\.|[^\"])*)\"", content)
+    values: dict[str, str] = {}
+    for key, value in pairs:
+        values[key] = bytes(value, "utf-8").decode("unicode_escape")
+    return values
+
+
 def js_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def build_config() -> dict[str, str]:
     file_values = parse_env_file(ENV_PATH)
+    runtime_values = parse_runtime_config(RUNTIME_CONFIG_PATH)
     merged = {}
     for key, fallback in DEFAULTS.items():
-        merged[key] = os.environ.get(key) or file_values.get(key) or fallback
+        runtime_key = RUNTIME_KEY_MAP[key]
+        merged[key] = (
+            os.environ.get(key)
+            or file_values.get(key)
+            or runtime_values.get(runtime_key)
+            or fallback
+        )
     return merged
 
 

@@ -15,14 +15,14 @@ const refs = {
   logoutBtn: document.querySelector("#logoutBtn"),
   authStatus: document.querySelector("#authStatus"),
   userPanel: document.querySelector("#userPanel"),
-  guestPanel: document.querySelector("#guestPanel"),
   userEmail: document.querySelector("#userEmail"),
 };
 
 function setStatus(message, type) {
+  refs.authStatus.hidden = !message;
   refs.authStatus.textContent = message;
   refs.authStatus.className = "status-text";
-  if (type) {
+  if (message && type) {
     refs.authStatus.classList.add(`is-${type}`);
   }
 }
@@ -30,9 +30,10 @@ function setStatus(message, type) {
 function syncUserUI(user) {
   const hasUser = Boolean(user);
   refs.userPanel.hidden = !hasUser;
-  refs.guestPanel.hidden = hasUser;
   refs.userEmail.textContent = user?.email || "-";
 }
+
+let preserveStatusOnce = false;
 
 async function refreshUser() {
   const user = await getCurrentUser();
@@ -42,16 +43,20 @@ async function refreshUser() {
     return;
   }
   if (!isSupabaseConfigured) {
-    setStatus("先設定 Supabase。若你已填 .env，請先執行 npm run sync-config。", "danger");
+    setStatus("尚未設定 Supabase。請在 .env 或 static/runtime-config.js 填入 URL 與 Publishable Key。", "danger");
     return;
   }
-  setStatus("登入後即可進入拍照分類與 edit 工作台。", "");
+  if (preserveStatusOnce) {
+    preserveStatusOnce = false;
+    return;
+  }
+  setStatus("", "");
 }
 
 async function handleLogin(event) {
   event.preventDefault();
   if (!isSupabaseConfigured) {
-    setStatus("尚未設定 Supabase。若你已填 .env，請先執行 npm run sync-config。", "danger");
+    setStatus("尚未設定 Supabase。請在 .env 或 static/runtime-config.js 填入 URL 與 Publishable Key。", "danger");
     return;
   }
 
@@ -90,8 +95,9 @@ function consumeErrorParam() {
 
   const messages = {
     "no-session": "請先登入，才能進入拍照分類或 edit 頁面。",
-    "missing-config": "尚未設定 Supabase 環境變數。",
+    "missing-config": "尚未設定 Supabase。請先補回 URL 與 Publishable Key。",
   };
+  preserveStatusOnce = true;
   setStatus(messages[error] || "請先登入。", "danger");
   url.searchParams.delete("error");
   window.history.replaceState({}, "", url);

@@ -32,21 +32,18 @@
           <button class="primary-button" id="loginBtn" type="submit">登入</button>
         </form>
 
+        <a class="primary-button home-capture-link" href="./capture/">拍照</a>
+
         <div class="toolbar-row" id="userPanel" hidden>
           <span class="meta-chip">目前帳號：<strong id="userEmail">-</strong></span>
           <button class="secondary-button" id="logoutBtn" type="button">登出</button>
         </div>
 
-        <div id="guestPanel">
-          <p class="muted-copy">未登入時，拍照分類與 edit 頁面會自動把你帶回這裡。</p>
-        </div>
-
-        <p class="status-text" id="authStatus">登入後即可進入拍照分類與 edit 工作台。</p>
+        <p class="status-text" id="authStatus" hidden></p>
       </article>
     </section>
 
-    <section class="home-actions">
-      <a class="primary-button home-primary-link" href="./capture/">拍照</a>
+    <section class="home-secondary-action">
       <a class="secondary-button home-secondary-link" href="./edit/">相片Edit</a>
     </section>
   </main>
