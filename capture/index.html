@@ -17,7 +17,7 @@
   <main class="capture-shell">
     <section class="capture-hero">
       <p class="eyebrow">Mobile Capture Flow</p>
-      <h1>先拍車，再標記改了什麼</h1>
+      <h1>拍照分類</h1>
     </section>
 
     <form class="capture-stack" id="captureForm">
@@ -29,13 +29,10 @@
           </div>
         </div>
 
-        <label class="upload-zone large" for="vehicleInput">
+        <label class="upload-zone large" id="vehicleZone" for="vehicleInput">
           <input id="vehicleInput" type="file" accept="image/*" capture="environment">
-          <strong>按一下拍照或上傳車輛照</strong>
-          <small>手機會優先開相機；如需更換，先移除現有相片。</small>
+          <div class="upload-zone-content" id="vehiclePreview"></div>
         </label>
-
-        <div class="preview-grid" id="vehiclePreview"></div>
       </section>
 
       <section class="capture-card">
@@ -52,9 +49,7 @@
         <div class="section-head">
           <div>
             <h2>第三步：加入配件 / 維修項目</h2>
-            <p>每個項目只可上傳一張相片，要再加入相片請按加入更多配件。</p>
           </div>
-          <button class="secondary-button" id="addAccessoryBtn" type="button">加入更多配件</button>
         </div>
 
         <div class="accessory-stack" id="accessoryList"></div>
@@ -64,6 +59,7 @@
 
   <footer class="sticky-actionbar">
     <div class="actionbar-row">
+      <button class="secondary-button" id="addAccessoryBtn" type="button">加入更多配件</button>
       <button class="primary-button" id="saveSetBtn" type="submit" form="captureForm">完成</button>
     </div>
     <p class="status-text" id="captureStatus">上方流程會在完成後把車輛照、品牌與配件項目一併儲存。</p>

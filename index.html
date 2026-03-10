@@ -13,7 +13,7 @@
   <main class="shell">
     <section class="hero-block">
       <p class="eyebrow">Garage Photo Workbench</p>
-      <h1>車輛相片分類工作台</h1>
+      <h1>車輛相片分類與調色工作台</h1>
     </section>
 
     <section class="home-login-wrap">
@@ -25,11 +25,13 @@
             <label for="emailInput">Email</label>
             <input id="emailInput" type="email" placeholder="you@example.com" autocomplete="username">
           </div>
-          <div class="field">
-            <label for="passwordInput">Password</label>
-            <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password">
+          <div class="auth-password-row">
+            <div class="field">
+              <label for="passwordInput">Password</label>
+              <input id="passwordInput" type="password" placeholder="Password" autocomplete="current-password">
+            </div>
+            <button class="secondary-button login-inline-btn" id="loginBtn" type="submit">登入</button>
           </div>
-          <button class="primary-button" id="loginBtn" type="submit">登入</button>
         </form>
 
         <a class="primary-button home-capture-link" href="./capture/">拍照</a>
