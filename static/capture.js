@@ -330,6 +330,7 @@ function resetForm() {
   renderVehiclePreview();
   renderBrands();
   renderAccessoryList();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function collectPayload() {

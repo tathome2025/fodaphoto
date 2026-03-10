@@ -29,6 +29,7 @@ function setStatus(message, type) {
 
 function syncUserUI(user) {
   const hasUser = Boolean(user);
+  refs.loginForm.hidden = hasUser;
   refs.userPanel.hidden = !hasUser;
   refs.userEmail.textContent = user?.email || "-";
 }
