@@ -1,8 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
 import { appConfig, isSupabaseConfigured } from "./config.js";
 
+const hasSupabaseBrowserClient = Boolean(window.supabase?.createClient);
+
 export const supabase = isSupabaseConfigured
-  ? createClient(appConfig.supabaseUrl, appConfig.supabasePublishableKey, {
+  && hasSupabaseBrowserClient
+  ? window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabasePublishableKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
@@ -12,6 +14,9 @@ export const supabase = isSupabaseConfigured
   : null;
 
 export function assertSupabaseConfigured() {
+  if (!hasSupabaseBrowserClient) {
+    throw new Error("Supabase 瀏覽器 client 未載入。");
+  }
   if (!supabase) {
     throw new Error("尚未設定 Supabase URL 或 Publishable Key。");
   }

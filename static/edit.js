@@ -1,4 +1,3 @@
-import JSZip from "jszip";
 import { requireAuthenticatedPage } from "./supabase-browser.js";
 import {
   applyFilterToDate,
@@ -275,7 +274,7 @@ async function downloadDayArchive() {
   setStatus("正在打包當天相片...", "");
 
   try {
-    const zip = new JSZip();
+    const zip = new window.JSZip();
 
     for (const captureSet of state.captureSets) {
       const folder = zip.folder(sanitizeFileName(buildFolderName(captureSet)));

@@ -65,6 +65,10 @@ VITE_APP_TIMEZONE=Asia/Hong_Kong
 
 - [.env.example](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/.env.example)
 
+如果你不是用 `npm run dev` / `vite build`，而是直接用靜態伺服器打開這個資料夾，請改填：
+
+- [static/runtime-config.js](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/static/runtime-config.js)
+
 ## 6. 本機測試
 
 ```bash

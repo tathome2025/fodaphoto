@@ -49,6 +49,10 @@ npm run build
 - `VITE_SUPABASE_STORAGE_BUCKET`
 - `VITE_APP_TIMEZONE`
 
+如果你只是直接用靜態伺服器開這個資料夾，而沒有經過 Vite build，則改填：
+
+- [static/runtime-config.js](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/static/runtime-config.js)
+
 ## GitHub Pages
 
 已加入 workflow：
