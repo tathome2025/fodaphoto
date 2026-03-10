@@ -35,8 +35,24 @@ export async function getSession() {
 }
 
 export async function getCurrentUser() {
+  if (!supabase) {
+    return null;
+  }
+
   const session = await getSession();
-  return session?.user || null;
+  if (session?.user) {
+    return session.user;
+  }
+
+  const { data, error } = await supabase.auth.getUser();
+  if (error) {
+    const message = error.message || "";
+    if (/session/i.test(message) || /jwt/i.test(message)) {
+      return null;
+    }
+    throw error;
+  }
+  return data.user || null;
 }
 
 export async function requireAuthenticatedPage(redirectHref = "../index.html") {

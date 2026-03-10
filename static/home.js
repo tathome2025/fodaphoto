@@ -141,7 +141,12 @@ function consumeErrorParam() {
 function bindEvents() {
   refs.loginForm.addEventListener("submit", handleLogin);
   refs.logoutBtn.addEventListener("click", handleLogout);
-  onAuthStateChange(async () => {
+  onAuthStateChange(async (_event, session) => {
+    if (session?.user) {
+      syncUserUI(session.user);
+      setStatus("", "");
+      return;
+    }
     await refreshUser();
   });
 }
