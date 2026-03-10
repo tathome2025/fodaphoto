@@ -32,10 +32,14 @@ create table if not exists public.capture_sets (
   capture_date date not null,
   notes text not null default '',
   brand_id text not null references public.brands(id),
+  vehicle_model text not null default '',
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
+
+alter table public.capture_sets
+  add column if not exists vehicle_model text not null default '';
 
 create table if not exists public.photos (
   id uuid primary key default gen_random_uuid(),
