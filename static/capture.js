@@ -78,25 +78,17 @@ function clearAssets(list) {
   list.forEach((asset) => revokeDraftAsset(asset));
 }
 
-function getPreviewFitClass(photo) {
+function getPreviewRatio(photo) {
   if (!photo?.width || !photo?.height) {
-    return "is-square";
+    return "4 / 3";
   }
-
-  const ratio = photo.width / photo.height;
-  if (ratio > 1.05) {
-    return "is-landscape";
-  }
-  if (ratio < 0.95) {
-    return "is-portrait";
-  }
-  return "is-square";
+  return `${photo.width} / ${photo.height}`;
 }
 
 function renderUploadCover(photo, altText, removeAttr, removeValue) {
   return `
-    <figure class="upload-cover ${getPreviewFitClass(photo)}">
-      <div class="upload-cover-frame">
+    <figure class="upload-cover">
+      <div class="upload-cover-frame" style="aspect-ratio: ${getPreviewRatio(photo)};">
         <img src="${photo.previewUrl}" alt="${altText}">
       </div>
       <figcaption class="upload-cover-footer">
