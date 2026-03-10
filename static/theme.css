@@ -501,6 +501,14 @@ button {
   pointer-events: none;
 }
 
+.utility-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .upload-zone-content {
   position: absolute;
   inset: 0;
@@ -531,6 +539,20 @@ button {
   display: grid;
   gap: 0.5rem;
   max-width: 18rem;
+}
+
+.upload-action-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.upload-action-btn {
+  min-height: 3rem;
+  padding: 0.7rem 0.9rem;
+  text-align: center;
 }
 
 .upload-cover {

@@ -12,6 +12,7 @@ import {
 const refs = {
   captureForm: document.querySelector("#captureForm"),
   vehicleInput: document.querySelector("#vehicleInput"),
+  vehicleLibraryInput: document.querySelector("#vehicleLibraryInput"),
   vehicleZone: document.querySelector("#vehicleZone"),
   vehiclePreview: document.querySelector("#vehiclePreview"),
   brandGrid: document.querySelector("#brandGrid"),
@@ -106,6 +107,28 @@ function getAccessoryPromptText() {
     : "拍配件 / 維修相片或上傳";
 }
 
+function renderUploadActions(kind, entryId = "") {
+  if (!isDirectCameraMode()) {
+    return "";
+  }
+
+  if (kind === "vehicle") {
+    return `
+      <div class="upload-action-row">
+        <button class="primary-button upload-action-btn" type="button" data-open-vehicle-camera>拍照</button>
+        <button class="secondary-button upload-action-btn" type="button" data-open-vehicle-library>上傳相片</button>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="upload-action-row">
+      <button class="primary-button upload-action-btn" type="button" data-open-entry-camera="${entryId}">拍照</button>
+      <button class="secondary-button upload-action-btn" type="button" data-open-entry-library="${entryId}">上傳相片</button>
+    </div>
+  `;
+}
+
 function getPreviewRatio(photo) {
   if (!photo?.width || !photo?.height) {
     return "4 / 3";
@@ -135,8 +158,21 @@ function renderVehiclePreview() {
       <div class="upload-prompt">
         <strong>${getVehiclePromptText()}</strong>
         <small>只可上傳一張車輛照。</small>
+        ${renderUploadActions("vehicle")}
       </div>
     `;
+
+    refs.vehiclePreview.querySelector("[data-open-vehicle-camera]")?.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await openCameraOverlay({ kind: "vehicle" });
+    });
+
+    refs.vehiclePreview.querySelector("[data-open-vehicle-library]")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      refs.vehicleLibraryInput.click();
+    });
     return;
   }
 
@@ -184,6 +220,7 @@ function renderAccessoryPreview(entry) {
       <div class="upload-prompt">
         <strong>${getAccessoryPromptText()}</strong>
         <small>只可上傳一張相片。</small>
+        ${renderUploadActions("accessory", entry.id)}
       </div>
     `;
   }
@@ -227,6 +264,7 @@ function renderAccessoryList() {
         <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment" ${(entry.photos.length || isDirectCameraMode()) ? "disabled" : ""}>
         <div class="upload-zone-content">${renderAccessoryPreview(entry)}</div>
       </label>
+      <input class="utility-file-input" id="library-${entry.id}" type="file" accept="image/*" ${entry.photos.length ? "disabled" : ""}>
 
       <div class="choice-grid service-grid">${renderServiceButtons(entry)}</div>
 
@@ -285,7 +323,7 @@ function renderAccessoryList() {
       if (!isDirectCameraMode()) {
         return;
       }
-      if (event.target.closest(".tiny-button")) {
+      if (event.target.closest("button")) {
         return;
       }
       const entryId = zone.dataset.cameraEntry;
@@ -298,9 +336,27 @@ function renderAccessoryList() {
     });
   });
 
+  refs.accessoryList.querySelectorAll("[data-open-entry-camera]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      await openCameraOverlay({ kind: "accessory", entryId: button.dataset.openEntryCamera });
+    });
+  });
+
+  refs.accessoryList.querySelectorAll("[data-open-entry-library]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const entryId = button.dataset.openEntryLibrary;
+      const input = refs.accessoryList.querySelector(`#library-${entryId}`);
+      input?.click();
+    });
+  });
+
   refs.accessoryList.querySelectorAll('input[type="file"]').forEach((input) => {
     input.addEventListener("change", async () => {
-      const entryId = input.id.replace("upload-", "");
+      const entryId = input.id.replace("upload-", "").replace("library-", "");
       const entry = state.accessoryEntries.find((record) => record.id === entryId);
       if (!entry || !input.files?.length) {
         return;
@@ -570,11 +626,18 @@ function bindEvents() {
     }
   });
 
+  refs.vehicleLibraryInput.addEventListener("change", async () => {
+    if (refs.vehicleLibraryInput.files?.length) {
+      await handleVehicleUpload(refs.vehicleLibraryInput.files);
+    }
+    refs.vehicleLibraryInput.value = "";
+  });
+
   refs.vehicleZone.addEventListener("click", async (event) => {
     if (!isDirectCameraMode()) {
       return;
     }
-    if (event.target.closest(".tiny-button") || state.vehiclePhotos.length > 0) {
+    if (event.target.closest("button") || state.vehiclePhotos.length > 0) {
       return;
     }
     event.preventDefault();
