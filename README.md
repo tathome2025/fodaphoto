@@ -30,6 +30,12 @@ cp .env.example .env
 npm run dev
 ```
 
+如果你改完 `.env` 後想立即同步到靜態版設定檔，也可以單獨執行：
+
+```bash
+npm run sync-config
+```
+
 ## 建置
 
 ```bash
@@ -52,6 +58,14 @@ npm run build
 如果你只是直接用靜態伺服器開這個資料夾，而沒有經過 Vite build，則改填：
 
 - [static/runtime-config.js](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/static/runtime-config.js)
+
+現在也可以直接填 `.env`，再執行：
+
+```bash
+npm run sync-config
+```
+
+腳本會把 `.env` 轉成瀏覽器可讀的 `static/runtime-config.js`。
 
 ## GitHub Pages
 

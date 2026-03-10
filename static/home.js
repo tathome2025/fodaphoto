@@ -35,7 +35,7 @@ function syncConfigUI() {
   refs.bucketValue.textContent = appConfig.storageBucket;
   refs.configStatus.textContent = isSupabaseConfigured
     ? "Supabase 環境變數已讀取。"
-    : "尚未讀取到 Supabase 環境變數，請先設定 .env。";
+    : "尚未讀取到 Supabase 設定。若你已填 .env，請先執行 npm run sync-config。";
   refs.configStatus.className = "status-text";
   if (!isSupabaseConfigured) {
     refs.configStatus.classList.add("is-danger");
@@ -57,7 +57,7 @@ async function refreshUser() {
     return;
   }
   if (!isSupabaseConfigured) {
-    setStatus("先設定 Supabase，再用帳號密碼登入。", "danger");
+    setStatus("先設定 Supabase。若你已填 .env，請先執行 npm run sync-config。", "danger");
     return;
   }
   setStatus("登入後即可進入拍照分類與 edit 工作台。", "");
@@ -66,7 +66,7 @@ async function refreshUser() {
 async function handleLogin(event) {
   event.preventDefault();
   if (!isSupabaseConfigured) {
-    setStatus("尚未設定 Supabase，不能登入。", "danger");
+    setStatus("尚未設定 Supabase。若你已填 .env，請先執行 npm run sync-config。", "danger");
     return;
   }
 

@@ -69,6 +69,16 @@ VITE_APP_TIMEZONE=Asia/Hong_Kong
 
 - [static/runtime-config.js](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/static/runtime-config.js)
 
+現在也可直接執行：
+
+```bash
+npm run sync-config
+```
+
+它會把 `.env` 或目前 shell 的環境變數同步到：
+
+- [static/runtime-config.js](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/static/runtime-config.js)
+
 ## 6. 本機測試
 
 ```bash
