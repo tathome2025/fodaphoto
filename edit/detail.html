@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>進階調色 | Garage Photo Workbench</title>
+  <link rel="stylesheet" href="../static/theme.css">
+  <script type="module" src="../static/detail.js"></script>
+</head>
+<body class="page-detail">
+  <main class="editor-shell">
+    <aside class="editor-sidebar">
+      <div class="editor-heading">
+        <p class="eyebrow">Develop</p>
+        <h1 id="photoTitle">進階調色</h1>
+        <p class="panel-copy" id="photoSummary">讀取相片中...</p>
+      </div>
+
+      <section class="group-card">
+        <h2>Preset</h2>
+        <div class="preset-grid" id="presetGrid"></div>
+      </section>
+
+      <section class="group-card">
+        <h2>Basic Adjustments</h2>
+        <div class="slider-stack">
+          <div class="slider-block">
+            <div class="slider-head">
+              <label for="brightnessInput">亮度</label>
+              <output id="brightnessValue">0</output>
+            </div>
+            <input id="brightnessInput" type="range" min="-100" max="100" step="1" value="0">
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <label for="contrastInput">對比</label>
+              <output id="contrastValue">0</output>
+            </div>
+            <input id="contrastInput" type="range" min="-100" max="100" step="1" value="0">
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <label for="saturationInput">飽和度</label>
+              <output id="saturationValue">0</output>
+            </div>
+            <input id="saturationInput" type="range" min="-100" max="100" step="1" value="0">
+          </div>
+
+          <div class="slider-block">
+            <div class="slider-head">
+              <label for="temperatureInput">色溫</label>
+              <output id="temperatureValue">0</output>
+            </div>
+            <input id="temperatureInput" type="range" min="-100" max="100" step="1" value="0">
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="editor-preview-shell">
+      <div class="editor-topbar">
+        <a class="back-link" id="backLink" href="./">← 返回列表</a>
+        <p class="status-text" id="detailStatus">拖動右邊參數，並把成功的設定另存成 filter。</p>
+      </div>
+      <div class="detail-image-frame">
+        <canvas id="detailCanvas"></canvas>
+      </div>
+    </section>
+
+    <aside class="editor-sidebar">
+      <section class="group-card">
+        <h2>Photo Info</h2>
+        <div class="detail-meta-grid">
+          <div class="detail-meta">
+            <span>檔名</span>
+            <strong id="fileNameMeta">-</strong>
+          </div>
+          <div class="detail-meta">
+            <span>分類</span>
+            <strong id="kindMeta">-</strong>
+          </div>
+          <div class="detail-meta">
+            <span>品牌</span>
+            <strong id="brandMeta">-</strong>
+          </div>
+          <div class="detail-meta">
+            <span>案件</span>
+            <strong id="setMeta">-</strong>
+          </div>
+          <div class="detail-meta">
+            <span>下載資料夾</span>
+            <strong id="folderMeta">-</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="group-card">
+        <h2>Save Filter</h2>
+        <input class="name-input" id="filterNameInput" type="text" placeholder="例如：BMW Suspension Clean">
+        <div class="toolbar-row">
+          <button class="primary-button" id="saveFilterBtn" type="button">另存命名 filter</button>
+          <button class="secondary-button" id="savePhotoBtn" type="button">儲存回列表</button>
+        </div>
+        <button class="ghost-button" id="exportBtn" type="button">下載目前相片</button>
+      </section>
+
+      <section class="group-card">
+        <h2>Saved Filter List</h2>
+        <div class="saved-filter-stack" id="detailFilterList"></div>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>
