@@ -43,6 +43,10 @@ body {
     linear-gradient(180deg, #141619 0%, #0d0f11 100%);
 }
 
+body.camera-open {
+  overflow: hidden;
+}
+
 body::before {
   content: "";
   position: fixed;
@@ -493,6 +497,10 @@ button {
   z-index: 2;
 }
 
+.upload-zone input:disabled {
+  pointer-events: none;
+}
+
 .upload-zone-content {
   position: absolute;
   inset: 0;
@@ -777,6 +785,53 @@ button {
   border-radius: 1rem;
   color: var(--muted);
   text-align: center;
+}
+
+.camera-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  align-items: end;
+  padding: 0.8rem;
+  background: rgba(0, 0, 0, 0.82);
+}
+
+.camera-shell {
+  display: grid;
+  gap: 0.8rem;
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 0.9rem;
+  border: 1px solid var(--line-strong);
+  background: rgba(15, 17, 20, 0.96);
+  box-shadow: var(--shadow-lg);
+}
+
+.camera-head,
+.camera-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+}
+
+.camera-stage {
+  overflow: hidden;
+  background: #000;
+}
+
+.camera-stage video,
+.camera-stage canvas {
+  display: block;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+
+.camera-actions .primary-button,
+.camera-actions .secondary-button {
+  flex: 1 1 auto;
 }
 
 .edit-shell {

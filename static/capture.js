@@ -19,6 +19,13 @@ const refs = {
   addAccessoryBtn: document.querySelector("#addAccessoryBtn"),
   saveSetBtn: document.querySelector("#saveSetBtn"),
   captureStatus: document.querySelector("#captureStatus"),
+  cameraOverlay: document.querySelector("#cameraOverlay"),
+  cameraTitle: document.querySelector("#cameraTitle"),
+  cameraVideo: document.querySelector("#cameraVideo"),
+  cameraCanvas: document.querySelector("#cameraCanvas"),
+  closeCameraBtn: document.querySelector("#closeCameraBtn"),
+  cancelCameraBtn: document.querySelector("#cancelCameraBtn"),
+  shutterCameraBtn: document.querySelector("#shutterCameraBtn"),
 };
 
 const state = {
@@ -27,6 +34,8 @@ const state = {
   brandId: "",
   vehiclePhotos: [],
   accessoryEntries: [],
+  cameraTarget: null,
+  cameraStream: null,
 };
 
 function createAccessoryEntry() {
@@ -78,6 +87,25 @@ function clearAssets(list) {
   list.forEach((asset) => revokeDraftAsset(asset));
 }
 
+function isDirectCameraMode() {
+  return Boolean(
+    window.matchMedia?.("(pointer: coarse)").matches
+    && navigator.mediaDevices?.getUserMedia
+  );
+}
+
+function getVehiclePromptText() {
+  return isDirectCameraMode()
+    ? "按一下拍照"
+    : "按一下拍照或上傳車輛照";
+}
+
+function getAccessoryPromptText() {
+  return isDirectCameraMode()
+    ? "拍配件 / 維修相片"
+    : "拍配件 / 維修相片或上傳";
+}
+
 function getPreviewRatio(photo) {
   if (!photo?.width || !photo?.height) {
     return "4 / 3";
@@ -101,11 +129,11 @@ function renderUploadCover(photo, altText, removeAttr, removeValue) {
 
 function renderVehiclePreview() {
   refs.vehicleZone.classList.toggle("has-preview", state.vehiclePhotos.length > 0);
-  refs.vehicleInput.disabled = state.vehiclePhotos.length > 0;
+  refs.vehicleInput.disabled = state.vehiclePhotos.length > 0 || isDirectCameraMode();
   if (!state.vehiclePhotos.length) {
     refs.vehiclePreview.innerHTML = `
       <div class="upload-prompt">
-        <strong>按一下拍照或上傳車輛照</strong>
+        <strong>${getVehiclePromptText()}</strong>
         <small>只可上傳一張車輛照。</small>
       </div>
     `;
@@ -154,7 +182,7 @@ function renderAccessoryPreview(entry) {
   if (!entry.photos.length) {
     return `
       <div class="upload-prompt">
-        <strong>拍配件 / 維修相片</strong>
+        <strong>${getAccessoryPromptText()}</strong>
         <small>只可上傳一張相片。</small>
       </div>
     `;
@@ -195,8 +223,8 @@ function renderAccessoryList() {
         <button class="tiny-button" type="button" data-remove-entry="${entry.id}">移除</button>
       </div>
 
-      <label class="upload-zone ${entry.photos.length ? "has-preview" : ""}" for="upload-${entry.id}">
-        <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment" ${entry.photos.length ? "disabled" : ""}>
+      <label class="upload-zone ${entry.photos.length ? "has-preview" : ""}" data-camera-entry="${entry.id}" for="upload-${entry.id}">
+        <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment" ${(entry.photos.length || isDirectCameraMode()) ? "disabled" : ""}>
         <div class="upload-zone-content">${renderAccessoryPreview(entry)}</div>
       </label>
 
@@ -252,6 +280,24 @@ function renderAccessoryList() {
     });
   });
 
+  refs.accessoryList.querySelectorAll("[data-camera-entry]").forEach((zone) => {
+    zone.addEventListener("click", async (event) => {
+      if (!isDirectCameraMode()) {
+        return;
+      }
+      if (event.target.closest(".tiny-button")) {
+        return;
+      }
+      const entryId = zone.dataset.cameraEntry;
+      const entry = state.accessoryEntries.find((record) => record.id === entryId);
+      if (!entry || entry.photos.length > 0) {
+        return;
+      }
+      event.preventDefault();
+      await openCameraOverlay({ kind: "accessory", entryId });
+    });
+  });
+
   refs.accessoryList.querySelectorAll('input[type="file"]').forEach((input) => {
     input.addEventListener("change", async () => {
       const entryId = input.id.replace("upload-", "");
@@ -268,11 +314,7 @@ function renderAccessoryList() {
       }
 
       try {
-        setStatus("處理配件相片中...", "");
-        const prepared = await fileToDraftAsset(input.files[0]);
-        entry.photos = [prepared];
-        renderAccessoryList();
-        setStatus("已加入配件相片。", "success");
+        await applyAccessoryFile(entry, input.files[0]);
       } catch (error) {
         setStatus(describeSupabaseError(error), "danger");
       } finally {
@@ -293,8 +335,34 @@ function renderAccessoryList() {
 
 }
 
+async function applyAccessoryFile(entry, file) {
+  if (!file) {
+    return;
+  }
+
+  if (entry.photos.length > 0) {
+    setStatus("每個配件項目只可上傳一張。要再加入相片，請按「加入更多配件」。", "danger");
+    flashAddAccessoryButton();
+    return;
+  }
+
+  setStatus("處理配件相片中...", "");
+  const prepared = await fileToDraftAsset(file);
+  entry.photos = [prepared];
+  renderAccessoryList();
+  setStatus("已加入配件相片。", "success");
+}
+
 async function handleVehicleUpload(files) {
   if (!files.length) {
+    return;
+  }
+
+  await applyVehicleFile(files[0]);
+}
+
+async function applyVehicleFile(file) {
+  if (!file) {
     return;
   }
 
@@ -306,7 +374,7 @@ async function handleVehicleUpload(files) {
 
   try {
     setStatus("處理車輛相片中...", "");
-    const prepared = await fileToDraftAsset(files[0]);
+    const prepared = await fileToDraftAsset(file);
     state.vehiclePhotos = [prepared];
     renderVehiclePreview();
     setStatus("已加入車輛照。", "success");
@@ -314,6 +382,116 @@ async function handleVehicleUpload(files) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
     refs.vehicleInput.value = "";
+  }
+}
+
+async function requestCameraStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    });
+  } catch (_error) {
+    return navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+  }
+}
+
+async function stopCameraStream() {
+  if (state.cameraStream) {
+    state.cameraStream.getTracks().forEach((track) => track.stop());
+    state.cameraStream = null;
+  }
+  refs.cameraVideo.srcObject = null;
+}
+
+async function closeCameraOverlay() {
+  refs.cameraOverlay.hidden = true;
+  document.body.classList.remove("camera-open");
+  state.cameraTarget = null;
+  await stopCameraStream();
+}
+
+async function openCameraOverlay(target) {
+  if (!isDirectCameraMode()) {
+    return;
+  }
+
+  refs.cameraTitle.textContent = target.kind === "vehicle" ? "拍車輛照" : "拍配件 / 維修相片";
+  state.cameraTarget = target;
+  refs.cameraOverlay.hidden = false;
+  document.body.classList.add("camera-open");
+
+  try {
+    state.cameraStream = await requestCameraStream();
+    refs.cameraVideo.srcObject = state.cameraStream;
+    await refs.cameraVideo.play();
+  } catch (error) {
+    await closeCameraOverlay();
+    setStatus(describeSupabaseError(error), "danger");
+  }
+}
+
+function buildCapturedFile(blob, target) {
+  const stamp = Date.now();
+  const prefix = target.kind === "vehicle" ? "vehicle" : "accessory";
+  if (typeof File === "function") {
+    return new File([blob], `${prefix}-${stamp}.jpg`, {
+      type: "image/jpeg",
+      lastModified: stamp,
+    });
+  }
+  blob.name = `${prefix}-${stamp}.jpg`;
+  return blob;
+}
+
+async function handleCameraCapture() {
+  const target = state.cameraTarget;
+  if (!target) {
+    return;
+  }
+
+  const width = refs.cameraVideo.videoWidth;
+  const height = refs.cameraVideo.videoHeight;
+  if (!width || !height) {
+    setStatus("未能取得相機影像，請再試一次。", "danger");
+    return;
+  }
+
+  refs.shutterCameraBtn.disabled = true;
+  try {
+    refs.cameraCanvas.width = width;
+    refs.cameraCanvas.height = height;
+    const context = refs.cameraCanvas.getContext("2d");
+    if (!context) {
+      throw new Error("無法建立拍照畫布。");
+    }
+    context.drawImage(refs.cameraVideo, 0, 0, width, height);
+    const blob = await new Promise((resolve, reject) => {
+      refs.cameraCanvas.toBlob(
+        (result) => (result ? resolve(result) : reject(new Error("拍照失敗。"))),
+        "image/jpeg",
+        0.92
+      );
+    });
+    const file = buildCapturedFile(blob, target);
+    await closeCameraOverlay();
+    if (target.kind === "vehicle") {
+      await applyVehicleFile(file);
+      return;
+    }
+    const entry = state.accessoryEntries.find((record) => record.id === target.entryId);
+    if (!entry) {
+      setStatus("找不到目前的配件項目，請重新拍照。", "danger");
+      return;
+    }
+    await applyAccessoryFile(entry, file);
+  } catch (error) {
+    setStatus(describeSupabaseError(error), "danger");
+  } finally {
+    refs.shutterCameraBtn.disabled = false;
   }
 }
 
@@ -392,6 +570,17 @@ function bindEvents() {
     }
   });
 
+  refs.vehicleZone.addEventListener("click", async (event) => {
+    if (!isDirectCameraMode()) {
+      return;
+    }
+    if (event.target.closest(".tiny-button") || state.vehiclePhotos.length > 0) {
+      return;
+    }
+    event.preventDefault();
+    await openCameraOverlay({ kind: "vehicle" });
+  });
+
   refs.addAccessoryBtn.addEventListener("click", () => {
     state.accessoryEntries.push(createAccessoryEntry());
     renderAccessoryList();
@@ -401,8 +590,17 @@ function bindEvents() {
     });
   });
   refs.captureForm.addEventListener("submit", handleSubmit);
+  refs.closeCameraBtn.addEventListener("click", closeCameraOverlay);
+  refs.cancelCameraBtn.addEventListener("click", closeCameraOverlay);
+  refs.shutterCameraBtn.addEventListener("click", handleCameraCapture);
+  refs.cameraOverlay.addEventListener("click", async (event) => {
+    if (event.target === refs.cameraOverlay) {
+      await closeCameraOverlay();
+    }
+  });
 
   window.addEventListener("beforeunload", () => {
+    stopCameraStream();
     clearAssets(state.vehiclePhotos);
     state.accessoryEntries.forEach((entry) => clearAssets(entry.photos));
   });
