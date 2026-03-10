@@ -1,4 +1,4 @@
-import { appConfig, isSupabaseConfigured } from "./config.js";
+import { isSupabaseConfigured } from "./config.js";
 import {
   getCurrentUser,
   onAuthStateChange,
@@ -17,9 +17,6 @@ const refs = {
   userPanel: document.querySelector("#userPanel"),
   guestPanel: document.querySelector("#guestPanel"),
   userEmail: document.querySelector("#userEmail"),
-  configStatus: document.querySelector("#configStatus"),
-  timezoneValue: document.querySelector("#timezoneValue"),
-  bucketValue: document.querySelector("#bucketValue"),
 };
 
 function setStatus(message, type) {
@@ -27,18 +24,6 @@ function setStatus(message, type) {
   refs.authStatus.className = "status-text";
   if (type) {
     refs.authStatus.classList.add(`is-${type}`);
-  }
-}
-
-function syncConfigUI() {
-  refs.timezoneValue.textContent = appConfig.timezone;
-  refs.bucketValue.textContent = appConfig.storageBucket;
-  refs.configStatus.textContent = isSupabaseConfigured
-    ? "Supabase 環境變數已讀取。"
-    : "尚未讀取到 Supabase 設定。若你已填 .env，請先執行 npm run sync-config。";
-  refs.configStatus.className = "status-text";
-  if (!isSupabaseConfigured) {
-    refs.configStatus.classList.add("is-danger");
   }
 }
 
@@ -120,7 +105,6 @@ function bindEvents() {
   });
 }
 
-syncConfigUI();
 consumeErrorParam();
 bindEvents();
 refreshUser();

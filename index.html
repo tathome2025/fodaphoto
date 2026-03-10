@@ -14,19 +14,11 @@
     <section class="hero-block">
       <p class="eyebrow">Garage Photo Workbench</p>
       <h1>車輛相片分類與調色工作台</h1>
-      <p class="hero-copy">這個版本已改成可部署的 Supabase 專案。第一部分是手機優先拍照分類；第二部分是桌面優先的日曆、批量套 filter 與進階調色。</p>
-      <div class="bullet-strip">
-        <span class="chip">無圓角 UI</span>
-        <span class="chip">Vite 多頁部署</span>
-        <span class="chip">Supabase Auth / DB / Storage</span>
-      </div>
     </section>
 
-    <section class="auth-grid">
-      <article class="surface-card auth-panel">
-        <p class="eyebrow">Sign In</p>
-        <h2>登入後開始使用</h2>
-        <p class="panel-copy">這個工作台預設用 Supabase Email/Password 登入。先在 Supabase 後台建立使用者，再用這裡登入。</p>
+    <section class="home-login-wrap">
+      <article class="surface-card auth-panel auth-panel-compact">
+        <h2>登入</h2>
 
         <form class="auth-form" id="loginForm">
           <div class="field">
@@ -51,41 +43,12 @@
 
         <p class="status-text" id="authStatus">登入後即可進入拍照分類與 edit 工作台。</p>
       </article>
-
-      <article class="surface-card auth-panel">
-        <p class="eyebrow">Project Status</p>
-        <h2>目前設定</h2>
-        <div class="config-list">
-          <div class="detail-meta">
-            <span>Supabase</span>
-            <strong id="configStatus">讀取中...</strong>
-          </div>
-          <div class="detail-meta">
-            <span>Timezone</span>
-            <strong id="timezoneValue">-</strong>
-          </div>
-          <div class="detail-meta">
-            <span>Storage Bucket</span>
-            <strong id="bucketValue">-</strong>
-          </div>
-        </div>
-
-        <div class="nav-grid">
-          <a class="entry-card compact" href="./capture/">
-            <span class="card-kicker">Part 1</span>
-            <h2>拍照分類</h2>
-            <p>同一案件內完成車輛照、品牌、配件 / 維修項目與上傳。</p>
-          </a>
-          <a class="entry-card compact" href="./edit/">
-            <span class="card-kicker">Part 2</span>
-            <h2>相片 Edit</h2>
-            <p>按日曆查看相片，批量套 filter 或進入單張進階調色。</p>
-          </a>
-        </div>
-      </article>
     </section>
 
-    <p class="footer-note">Supabase SQL 與設定說明見 <a class="text-link" href="./supabase/schema.sql">schema.sql</a>、<a class="text-link" href="./SUPABASE_SETUP.md">SUPABASE_SETUP.md</a>。</p>
+    <section class="home-actions">
+      <a class="primary-button home-primary-link" href="./capture/">拍照</a>
+      <a class="secondary-button home-secondary-link" href="./edit/">相片Edit</a>
+    </section>
   </main>
 </body>
 </html>

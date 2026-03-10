@@ -85,6 +85,10 @@ button {
   padding: 2rem 0 3rem;
 }
 
+.page-home .shell {
+  width: min(760px, calc(100vw - 2rem));
+}
+
 .hero-block,
 .surface-card,
 .capture-card,
@@ -103,6 +107,8 @@ button {
   border-radius: 2rem;
   display: grid;
   gap: 1rem;
+  justify-items: center;
+  text-align: center;
 }
 
 .eyebrow {
@@ -156,6 +162,21 @@ button {
 .auth-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 1.25rem;
+}
+
+.home-login-wrap,
+.home-actions {
+  display: grid;
+  justify-items: center;
+}
+
+.home-login-wrap {
+  margin-top: 1.5rem;
+}
+
+.home-actions {
+  gap: 0.9rem;
+  margin-top: 1.6rem;
 }
 
 .entry-card,
@@ -274,7 +295,7 @@ button {
 }
 
 .capture-hero {
-  padding: 1rem 0 1.3rem;
+  padding: 1rem 0 0.8rem;
 }
 
 .capture-hero h1 {
@@ -376,9 +397,28 @@ button {
   gap: 1rem;
 }
 
+.auth-panel-compact {
+  width: min(100%, 25rem);
+  padding: 1.1rem;
+}
+
 .auth-form {
   display: grid;
   gap: 0.8rem;
+}
+
+.home-primary-link {
+  width: min(100%, 22rem);
+  justify-content: center;
+  text-align: center;
+  font-size: 1.05rem;
+}
+
+.home-secondary-link {
+  min-height: 2.6rem;
+  min-width: 10rem;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.88rem;
 }
 
 .field-wide textarea {
@@ -545,6 +585,22 @@ button {
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+.secondary-button.is-flashing {
+  animation: calloutFlash 0.9s linear 2;
+}
+
+@keyframes calloutFlash {
+  0%,
+  100% {
+    border-color: var(--line-strong);
+    background: rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    border-color: rgba(243, 161, 58, 0.9);
+    background: rgba(243, 161, 58, 0.28);
+  }
 }
 
 .actionbar-row {

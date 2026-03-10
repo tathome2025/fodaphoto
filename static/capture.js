@@ -11,20 +11,13 @@ import {
 
 const refs = {
   captureForm: document.querySelector("#captureForm"),
-  captureDateInput: document.querySelector("#captureDateInput"),
-  referenceInput: document.querySelector("#referenceInput"),
-  notesInput: document.querySelector("#notesInput"),
   vehicleInput: document.querySelector("#vehicleInput"),
   vehiclePreview: document.querySelector("#vehiclePreview"),
   brandGrid: document.querySelector("#brandGrid"),
   accessoryList: document.querySelector("#accessoryList"),
   addAccessoryBtn: document.querySelector("#addAccessoryBtn"),
   saveSetBtn: document.querySelector("#saveSetBtn"),
-  saveAndEditBtn: document.querySelector("#saveAndEditBtn"),
   captureStatus: document.querySelector("#captureStatus"),
-  progressVehicle: document.querySelector("#progressVehicle"),
-  progressBrand: document.querySelector("#progressBrand"),
-  progressAccessory: document.querySelector("#progressAccessory"),
 };
 
 const state = {
@@ -33,7 +26,6 @@ const state = {
   brandId: "",
   vehiclePhotos: [],
   accessoryEntries: [],
-  submitMode: "stay",
 };
 
 function createAccessoryEntry() {
@@ -65,17 +57,20 @@ function isAccessoryReady() {
   return state.accessoryEntries.length > 0 && state.accessoryEntries.every((entry) => entry.itemId && entry.photos.length > 0);
 }
 
-function renderProgress() {
-  const vehicleReady = isVehicleReady();
-  const brandReady = isBrandReady();
-  const accessoryReady = isAccessoryReady();
+function flashAddAccessoryButton() {
+  refs.addAccessoryBtn.classList.remove("is-flashing");
+  window.requestAnimationFrame(() => {
+    refs.addAccessoryBtn.classList.add("is-flashing");
+    window.setTimeout(() => {
+      refs.addAccessoryBtn.classList.remove("is-flashing");
+    }, 1200);
+  });
+}
 
-  refs.progressVehicle.classList.toggle("is-active", !vehicleReady);
-  refs.progressVehicle.classList.toggle("is-done", vehicleReady);
-  refs.progressBrand.classList.toggle("is-active", vehicleReady && !brandReady);
-  refs.progressBrand.classList.toggle("is-done", brandReady);
-  refs.progressAccessory.classList.toggle("is-active", vehicleReady && brandReady && !accessoryReady);
-  refs.progressAccessory.classList.toggle("is-done", accessoryReady);
+function createAutoReference() {
+  const dateStamp = todayLocal().replace(/-/g, "");
+  const timeStamp = `${Date.now()}`.slice(-6);
+  return `AUTO-${dateStamp}-${timeStamp}`;
 }
 
 function clearAssets(list) {
@@ -112,7 +107,6 @@ function renderVehiclePreview() {
       revokeDraftAsset(state.vehiclePhotos[index]);
       state.vehiclePhotos.splice(index, 1);
       renderVehiclePreview();
-      renderProgress();
     });
   });
 }
@@ -129,7 +123,6 @@ function renderBrands() {
     button.addEventListener("click", () => {
       state.brandId = button.dataset.brandId;
       renderBrands();
-      renderProgress();
     });
   });
 }
@@ -139,7 +132,7 @@ function renderAccessoryPreviews(entry) {
     return `
       <div class="empty-state">
         <strong>未加入配件相片</strong>
-        <p class="muted-copy">可連拍多張，同一項目會一起存入同一案件。</p>
+        <p class="muted-copy">每個配件項目只可放一張相片。</p>
       </div>
     `;
   }
@@ -172,7 +165,6 @@ function renderAccessoryList() {
         <p class="muted-copy">每加入一個項目，就可以上傳該項目的相片並選分類。</p>
       </div>
     `;
-    renderProgress();
     return;
   }
 
@@ -181,15 +173,15 @@ function renderAccessoryList() {
       <div class="accessory-head">
         <div>
           <h3>配件 / 維修 ${String(index + 1).padStart(2, "0")}</h3>
-          <p class="accessory-subcopy">同一項目可放多張相片，例如拆裝前後、細節位。</p>
+          <p class="accessory-subcopy">每個項目只可放一張相片。</p>
         </div>
         <button class="tiny-button" type="button" data-remove-entry="${entry.id}">移除</button>
       </div>
 
       <label class="upload-zone" for="upload-${entry.id}">
-        <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment" multiple>
+        <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment">
         <strong>拍配件 / 維修相片</strong>
-        <small>手機會直接打開相機，也可從相簿選多張。</small>
+        <small>此項目只可上傳一張相片。</small>
       </label>
 
       <div class="preview-grid">${renderAccessoryPreviews(entry)}</div>
@@ -252,13 +244,19 @@ function renderAccessoryList() {
         return;
       }
 
+      if (entry.photos.length > 0) {
+        setStatus("每個配件項目只可上傳一張。要再加入相片，請按「加入更多配件」。", "danger");
+        flashAddAccessoryButton();
+        input.value = "";
+        return;
+      }
+
       try {
         setStatus("處理配件相片中...", "");
-        const prepared = await Promise.all([...input.files].map((file) => fileToDraftAsset(file)));
-        entry.photos.push(...prepared);
+        const prepared = await fileToDraftAsset(input.files[0]);
+        entry.photos = [prepared];
         renderAccessoryList();
-        renderProgress();
-        setStatus(`已加入 ${prepared.length} 張配件相片。`, "success");
+        setStatus("已加入配件相片。", "success");
       } catch (error) {
         setStatus(describeSupabaseError(error), "danger");
       } finally {
@@ -277,7 +275,6 @@ function renderAccessoryList() {
     });
   });
 
-  renderProgress();
 }
 
 async function handleVehicleUpload(files) {
@@ -285,13 +282,18 @@ async function handleVehicleUpload(files) {
     return;
   }
 
+  if (state.vehiclePhotos.length > 0) {
+    setStatus("車輛照只可上傳一張，如需更換請先移除。", "danger");
+    refs.vehicleInput.value = "";
+    return;
+  }
+
   try {
     setStatus("處理車輛相片中...", "");
-    const prepared = await Promise.all([...files].map((file) => fileToDraftAsset(file)));
-    state.vehiclePhotos.push(...prepared);
+    const prepared = await fileToDraftAsset(files[0]);
+    state.vehiclePhotos = [prepared];
     renderVehiclePreview();
-    renderProgress();
-    setStatus(`已加入 ${prepared.length} 張車輛相片。`, "success");
+    setStatus("已加入車輛照。", "success");
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
@@ -300,9 +302,6 @@ async function handleVehicleUpload(files) {
 }
 
 function validateBeforeSave() {
-  if (!refs.referenceInput.value.trim()) {
-    return "請先輸入案件編號或車牌。";
-  }
   if (!isVehicleReady()) {
     return "請先加入至少 1 張車輛照。";
   }
@@ -323,9 +322,6 @@ function resetForm() {
   clearAssets(state.vehiclePhotos);
   state.accessoryEntries.forEach((entry) => clearAssets(entry.photos));
 
-  refs.referenceInput.value = "";
-  refs.notesInput.value = "";
-  refs.captureDateInput.value = todayLocal();
   refs.vehicleInput.value = "";
   state.brandId = "";
   state.vehiclePhotos = [];
@@ -333,14 +329,13 @@ function resetForm() {
   renderVehiclePreview();
   renderBrands();
   renderAccessoryList();
-  renderProgress();
 }
 
 function collectPayload() {
   return {
-    reference: refs.referenceInput.value.trim(),
-    captureDate: refs.captureDateInput.value || todayLocal(),
-    notes: refs.notesInput.value.trim(),
+    reference: createAutoReference(),
+    captureDate: todayLocal(),
+    notes: "",
     brandId: state.brandId,
     vehiclePhotos: state.vehiclePhotos,
     accessoryEntries: state.accessoryEntries.map((entry) => ({
@@ -360,27 +355,20 @@ async function handleSubmit(event) {
   }
 
   refs.saveSetBtn.disabled = true;
-  refs.saveAndEditBtn.disabled = true;
   setStatus("正在上傳至 Supabase...", "");
 
   try {
     const captureSet = await createCaptureSet(collectPayload());
     setStatus(`案件 ${captureSet.reference} 已儲存。`, "success");
-    if (state.submitMode === "edit") {
-      window.location.href = `../edit/?date=${encodeURIComponent(captureSet.captureDate)}`;
-      return;
-    }
     resetForm();
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
     refs.saveSetBtn.disabled = false;
-    refs.saveAndEditBtn.disabled = false;
   }
 }
 
 function bindEvents() {
-  refs.captureDateInput.value = todayLocal();
   refs.vehicleInput.addEventListener("change", async () => {
     if (refs.vehicleInput.files?.length) {
       await handleVehicleUpload(refs.vehicleInput.files);
@@ -395,13 +383,6 @@ function bindEvents() {
       refs.accessoryList.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
   });
-
-  refs.saveSetBtn.addEventListener("click", () => {
-    state.submitMode = "stay";
-  });
-  refs.saveAndEditBtn.addEventListener("click", () => {
-    state.submitMode = "edit";
-  });
   refs.captureForm.addEventListener("submit", handleSubmit);
 
   window.addEventListener("beforeunload", () => {
@@ -413,11 +394,9 @@ function bindEvents() {
 async function init() {
   await requireAuthenticatedPage("../index.html");
   setStatus("正在載入品牌與配件分類...", "");
-  refs.captureDateInput.value = todayLocal();
   state.accessoryEntries = [createAccessoryEntry()];
   renderVehiclePreview();
   renderAccessoryList();
-  renderProgress();
 
   try {
     const [brands, serviceItems] = await Promise.all([fetchBrands(), fetchServiceItems()]);
