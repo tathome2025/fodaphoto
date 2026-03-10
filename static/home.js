@@ -8,6 +8,7 @@ import {
 import { describeSupabaseError } from "./workbench.js";
 
 const refs = {
+  authHeading: document.querySelector("#authHeading"),
   loginForm: document.querySelector("#loginForm"),
   emailInput: document.querySelector("#emailInput"),
   passwordInput: document.querySelector("#passwordInput"),
@@ -40,6 +41,7 @@ function setStatus(message, type) {
 
 function syncUserUI(user) {
   const hasUser = Boolean(user);
+  refs.authHeading.textContent = hasUser ? "已登入" : "登入";
   refs.loginForm.hidden = hasUser;
   refs.userPanel.hidden = !hasUser;
   refs.userEmail.textContent = user?.email || "-";
@@ -51,7 +53,7 @@ async function refreshUser() {
   const user = await getCurrentUser();
   syncUserUI(user);
   if (user) {
-    setStatus(`目前已登入：${user.email}`, "success");
+    setStatus("", "");
     return;
   }
   if (!isSupabaseConfigured) {
@@ -88,7 +90,7 @@ async function handleLogin(event) {
     refs.passwordInput.value = "";
     if (session?.user) {
       syncUserUI(session.user);
-      setStatus(`目前已登入：${session.user.email}`, "success");
+      setStatus("", "");
       return;
     }
     await withTimeout(
