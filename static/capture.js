@@ -12,6 +12,7 @@ import {
 const refs = {
   captureForm: document.querySelector("#captureForm"),
   vehicleInput: document.querySelector("#vehicleInput"),
+  vehicleZone: document.querySelector("#vehicleZone"),
   vehiclePreview: document.querySelector("#vehiclePreview"),
   brandGrid: document.querySelector("#brandGrid"),
   accessoryList: document.querySelector("#accessoryList"),
@@ -78,28 +79,32 @@ function clearAssets(list) {
 }
 
 function renderVehiclePreview() {
+  refs.vehicleZone.classList.toggle("has-preview", state.vehiclePhotos.length > 0);
+  refs.vehicleInput.disabled = state.vehiclePhotos.length > 0;
   if (!state.vehiclePhotos.length) {
     refs.vehiclePreview.innerHTML = `
-      <div class="empty-state">
-        <strong>尚未加入車輛照</strong>
-        <p class="muted-copy">先拍或上傳車輛全景，之後才好對應配件項目。</p>
+      <div class="upload-prompt">
+        <strong>按一下拍照或上傳車輛照</strong>
+        <small>只可上傳一張車輛照。</small>
       </div>
     `;
     return;
   }
 
   refs.vehiclePreview.innerHTML = state.vehiclePhotos.map((photo, index) => `
-    <figure class="preview-thumb">
+    <figure class="upload-cover">
       <img src="${photo.previewUrl}" alt="車輛照 ${index + 1}">
-      <footer>
+      <figcaption class="upload-cover-footer">
         <span>${photo.fileName}</span>
         <button class="tiny-button" type="button" data-remove-vehicle="${photo.localId}">移除</button>
-      </footer>
+      </figcaption>
     </figure>
   `).join("");
 
   refs.vehiclePreview.querySelectorAll("[data-remove-vehicle]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const index = state.vehiclePhotos.findIndex((photo) => photo.localId === button.dataset.removeVehicle);
       if (index === -1) {
         return;
@@ -127,23 +132,23 @@ function renderBrands() {
   });
 }
 
-function renderAccessoryPreviews(entry) {
+function renderAccessoryPreview(entry) {
   if (!entry.photos.length) {
     return `
-      <div class="empty-state">
-        <strong>未加入配件相片</strong>
-        <p class="muted-copy">每個配件項目只可放一張相片。</p>
+      <div class="upload-prompt">
+        <strong>拍配件 / 維修相片</strong>
+        <small>只可上傳一張相片。</small>
       </div>
     `;
   }
 
   return entry.photos.map((photo) => `
-    <figure class="preview-thumb">
+    <figure class="upload-cover">
       <img src="${photo.previewUrl}" alt="${photo.fileName}">
-      <footer>
+      <figcaption class="upload-cover-footer">
         <span>${photo.fileName}</span>
         <button class="tiny-button" type="button" data-remove-accessory-photo="${entry.id}:${photo.localId}">移除</button>
-      </footer>
+      </figcaption>
     </figure>
   `).join("");
 }
@@ -171,20 +176,14 @@ function renderAccessoryList() {
   refs.accessoryList.innerHTML = state.accessoryEntries.map((entry, index) => `
     <article class="accessory-card">
       <div class="accessory-head">
-        <div>
-          <h3>配件 / 維修 ${String(index + 1).padStart(2, "0")}</h3>
-          <p class="accessory-subcopy">每個項目只可放一張相片。</p>
-        </div>
+        <h3>配件 / 維修 ${String(index + 1).padStart(2, "0")}</h3>
         <button class="tiny-button" type="button" data-remove-entry="${entry.id}">移除</button>
       </div>
 
-      <label class="upload-zone" for="upload-${entry.id}">
-        <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment">
-        <strong>拍配件 / 維修相片</strong>
-        <small>此項目只可上傳一張相片。</small>
+      <label class="upload-zone ${entry.photos.length ? "has-preview" : ""}" for="upload-${entry.id}">
+        <input id="upload-${entry.id}" type="file" accept="image/*" capture="environment" ${entry.photos.length ? "disabled" : ""}>
+        <div class="upload-zone-content">${renderAccessoryPreview(entry)}</div>
       </label>
-
-      <div class="preview-grid">${renderAccessoryPreviews(entry)}</div>
 
       <div class="choice-grid service-grid">${renderServiceButtons(entry)}</div>
 
@@ -220,7 +219,9 @@ function renderAccessoryList() {
   });
 
   refs.accessoryList.querySelectorAll("[data-remove-accessory-photo]").forEach((button) => {
-    button.addEventListener("click", () => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const [entryId, localId] = button.dataset.removeAccessoryPhoto.split(":");
       const entry = state.accessoryEntries.find((record) => record.id === entryId);
       if (!entry) {
