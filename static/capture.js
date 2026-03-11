@@ -7,6 +7,7 @@ import {
   fetchServiceItems,
   fileToDraftAsset,
   getSignedPhotoUrl,
+  markCaptureSetServiceCompleted,
   revokeDraftAsset,
 } from "./workbench.js";
 
@@ -37,11 +38,7 @@ const state = {
   vehicleThumbUrls: new Map(),
   cameraTarget: null,
   cameraStream: null,
-  cameraPreviewFrame: 0,
 };
-
-const CAMERA_LANDSCAPE_RATIO = 4 / 3;
-const CAMERA_PREVIEW_MAX_WIDTH = 1280;
 
 function createAccessoryEntry() {
   return {
@@ -71,106 +68,6 @@ function setStatus(message, type) {
   if (type) {
     refs.captureStatus.classList.add(`is-${type}`);
   }
-}
-
-function computeLandscapeFrame(sourceWidth, sourceHeight, maxWidth = 0) {
-  const rotated = sourceHeight > sourceWidth;
-  const landscapeWidth = rotated ? sourceHeight : sourceWidth;
-  const landscapeHeight = rotated ? sourceWidth : sourceHeight;
-
-  let targetHeight = landscapeHeight;
-  let targetWidth = Math.round(targetHeight * CAMERA_LANDSCAPE_RATIO);
-  if (targetWidth > landscapeWidth) {
-    targetWidth = landscapeWidth;
-    targetHeight = Math.round(targetWidth / CAMERA_LANDSCAPE_RATIO);
-  }
-
-  if (maxWidth && targetWidth > maxWidth) {
-    const scale = maxWidth / targetWidth;
-    targetWidth = Math.round(targetWidth * scale);
-    targetHeight = Math.round(targetHeight * scale);
-  }
-
-  return {
-    rotated,
-    targetWidth,
-    targetHeight,
-  };
-}
-
-function drawLandscapeCameraFrame(context, source, sourceWidth, sourceHeight, frame) {
-  context.save();
-  context.clearRect(0, 0, frame.targetWidth, frame.targetHeight);
-  context.fillStyle = "#000";
-  context.fillRect(0, 0, frame.targetWidth, frame.targetHeight);
-
-  if (frame.rotated) {
-    const scale = Math.max(
-      frame.targetWidth / sourceHeight,
-      frame.targetHeight / sourceWidth
-    );
-    const drawWidth = sourceWidth * scale;
-    const drawHeight = sourceHeight * scale;
-    context.translate(frame.targetWidth / 2, frame.targetHeight / 2);
-    context.rotate(Math.PI / 2);
-    context.drawImage(source, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
-  } else {
-    const scale = Math.max(
-      frame.targetWidth / sourceWidth,
-      frame.targetHeight / sourceHeight
-    );
-    const drawWidth = sourceWidth * scale;
-    const drawHeight = sourceHeight * scale;
-    context.drawImage(
-      source,
-      (frame.targetWidth - drawWidth) / 2,
-      (frame.targetHeight - drawHeight) / 2,
-      drawWidth,
-      drawHeight
-    );
-  }
-
-  context.restore();
-}
-
-function stopCameraPreview() {
-  if (state.cameraPreviewFrame) {
-    window.cancelAnimationFrame(state.cameraPreviewFrame);
-    state.cameraPreviewFrame = 0;
-  }
-}
-
-function startCameraPreview() {
-  stopCameraPreview();
-
-  const render = () => {
-    if (refs.cameraOverlay.hidden) {
-      stopCameraPreview();
-      return;
-    }
-
-    const width = refs.cameraVideo.videoWidth;
-    const height = refs.cameraVideo.videoHeight;
-    if (!width || !height) {
-      state.cameraPreviewFrame = window.requestAnimationFrame(render);
-      return;
-    }
-
-    const frame = computeLandscapeFrame(width, height, CAMERA_PREVIEW_MAX_WIDTH);
-    if (refs.cameraCanvas.width !== frame.targetWidth || refs.cameraCanvas.height !== frame.targetHeight) {
-      refs.cameraCanvas.width = frame.targetWidth;
-      refs.cameraCanvas.height = frame.targetHeight;
-    }
-
-    const context = refs.cameraCanvas.getContext("2d");
-    if (context) {
-      drawLandscapeCameraFrame(context, refs.cameraVideo, width, height, frame);
-    }
-
-    state.cameraPreviewFrame = window.requestAnimationFrame(render);
-  };
-
-  state.cameraPreviewFrame = window.requestAnimationFrame(render);
 }
 
 function syncCurrentUser(user) {
@@ -280,23 +177,28 @@ function renderCheckInVehicleList() {
     const thumbUrl = state.vehicleThumbUrls.get(captureSet.id);
     const vehiclePhoto = captureSet.vehiclePhotos[0];
     return `
-      <button
-        class="vehicle-select-card ${captureSet.id === state.selectedCaptureSetId ? "is-selected" : ""}"
-        type="button"
-        data-select-capture-set="${captureSet.id}"
-      >
-        <div class="vehicle-select-thumb">
-          ${thumbUrl
-            ? `<img src="${thumbUrl}" alt="${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}">`
-            : vehiclePhoto
-              ? `<div class="vehicle-thumb-placeholder">載入縮圖中</div>`
-              : `<div class="vehicle-thumb-placeholder">未有車輛相片</div>`}
+      <article class="vehicle-select-card ${captureSet.id === state.selectedCaptureSetId ? "is-selected" : ""}">
+        <button
+          class="vehicle-select-main"
+          type="button"
+          data-select-capture-set="${captureSet.id}"
+        >
+          <div class="vehicle-select-thumb">
+            ${thumbUrl
+              ? `<img src="${thumbUrl}" alt="${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}">`
+              : vehiclePhoto
+                ? `<div class="vehicle-thumb-placeholder">載入縮圖中</div>`
+                : `<div class="vehicle-thumb-placeholder">未有車輛相片</div>`}
+          </div>
+          <div class="vehicle-select-body">
+            <strong>${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}</strong>
+            <span>Check-in：${captureSet.createdByLabel || "未記錄"}</span>
+          </div>
+        </button>
+        <div class="vehicle-select-actions">
+          <button class="tiny-button" type="button" data-complete-capture-set="${captureSet.id}">已完成安裝維修保養</button>
         </div>
-        <div class="vehicle-select-body">
-          <strong>${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}</strong>
-          <span>Check-in：${captureSet.createdByLabel || "未記錄"}</span>
-        </div>
-      </button>
+      </article>
     `;
   }).join("");
 
@@ -312,6 +214,36 @@ function renderCheckInVehicleList() {
       }
       state.selectedCaptureSetId = nextId;
       renderCheckInVehicleList();
+    });
+  });
+
+  refs.checkInVehicleList.querySelectorAll("[data-complete-capture-set]").forEach((button) => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const captureSetId = button.dataset.completeCaptureSet;
+      if (!captureSetId) {
+        return;
+      }
+      if (captureSetId === state.selectedCaptureSetId && hasDraftServiceData()) {
+        setStatus("請先完成或清空目前項目，再標記這台車已完成。", "danger");
+        return;
+      }
+
+      button.disabled = true;
+      try {
+        const result = await markCaptureSetServiceCompleted(captureSetId);
+        if (captureSetId === state.selectedCaptureSetId) {
+          state.selectedCaptureSetId = "";
+          resetAccessoryEntries();
+        }
+        await loadCheckInSets();
+        setStatus(`案件 ${result.reference || captureSetId} 已標記為完成，不會再於安裝維修保養頁顯示。`, "success");
+      } catch (error) {
+        setStatus(describeSupabaseError(error), "danger");
+      } finally {
+        button.disabled = false;
+      }
     });
   });
 }
@@ -557,7 +489,6 @@ async function requestCameraStream() {
 }
 
 async function stopCameraStream() {
-  stopCameraPreview();
   if (state.cameraStream) {
     state.cameraStream.getTracks().forEach((track) => track.stop());
     state.cameraStream = null;
@@ -581,14 +512,13 @@ async function openCameraOverlay(target) {
   state.cameraTarget = target;
   refs.cameraOverlay.hidden = false;
   document.body.classList.add("camera-open");
-  refs.cameraVideo.hidden = true;
-  refs.cameraCanvas.hidden = false;
+  refs.cameraVideo.hidden = false;
+  refs.cameraCanvas.hidden = true;
 
   try {
     state.cameraStream = await requestCameraStream();
     refs.cameraVideo.srcObject = state.cameraStream;
     await refs.cameraVideo.play();
-    startCameraPreview();
   } catch (error) {
     await closeCameraOverlay();
     setStatus(describeSupabaseError(error), "danger");
@@ -622,14 +552,13 @@ async function handleCameraCapture() {
 
   refs.shutterCameraBtn.disabled = true;
   try {
-    const frame = computeLandscapeFrame(width, height);
-    refs.cameraCanvas.width = frame.targetWidth;
-    refs.cameraCanvas.height = frame.targetHeight;
+    refs.cameraCanvas.width = width;
+    refs.cameraCanvas.height = height;
     const context = refs.cameraCanvas.getContext("2d");
     if (!context) {
       throw new Error("無法建立拍照畫布。");
     }
-    drawLandscapeCameraFrame(context, refs.cameraVideo, width, height, frame);
+    context.drawImage(refs.cameraVideo, 0, 0, width, height);
     const blob = await new Promise((resolve, reject) => {
       refs.cameraCanvas.toBlob(
         (result) => (result ? resolve(result) : reject(new Error("拍照失敗。"))),
