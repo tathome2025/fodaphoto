@@ -181,7 +181,7 @@ async function renderCurrentDate() {
     refs.setList.innerHTML = `
       <div class="empty-state">
         <strong>這一天沒有相片</strong>
-        <p class="muted-copy">回到拍照分類頁面建立新案件，日曆便會自動出現標記。</p>
+        <p class="muted-copy">回到 Check-in 或安裝維修保養頁面建立新案件，日曆便會自動出現標記。</p>
       </div>
     `;
     return;

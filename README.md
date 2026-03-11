@@ -1,11 +1,13 @@
-# Garage Photo Workbench
+# FODA工作流程
 
 可直接部署的多頁 Vite 專案，已接入 Supabase：
 
 - `/`
   - 登入與入口頁
+- `/checkin/`
+  - 建立車輛 Check-in 案件，拍車輛照、選品牌和輸入車型
 - `/capture/`
-  - 手機優先的拍照分類流程
+  - 安裝維修保養流程，從已 Check-in 車輛中選車後追加服務資料
 - `/edit/`
   - 桌面優先的日曆 / 列表 / 批量 filter / 批量下載
 - `/edit/detail.html`
@@ -97,16 +99,17 @@ SQL schema：
 
 ## 目前資料流程
 
-1. 使用者登入後進入 `/capture/`
-2. 建立一個 `capture_set`
-3. 原圖上傳到 `garage-originals` bucket
-4. `photos` 表記錄每張車輛照與配件照
-5. `/edit/` 按日期讀取 `capture_sets` + `photos`
-6. 單張進階調色會把參數存進 `photo_edits`
-7. 命名 filter 會存進 `filters`
+1. 使用者登入後可先進入 `/checkin/` 建立車輛案件
+2. `capture_set` 先記錄品牌、車型與車輛照
+3. `/capture/` 從已 Check-in 車輛中選車，再追加安裝維修保養相片與項目
+4. 原圖上傳到 `garage-originals` bucket
+5. `photos` 表記錄車輛照與服務相片
+6. `/edit/` 按日期讀取 `capture_sets` + `photos`
+7. 單張進階調色會把參數存進 `photo_edits`
+8. 命名 filter 會存進 `filters`
 
 ## 目前限制
 
 - 批量打包下載仍在瀏覽器端執行，大量高畫質相片會較慢
-- 暫未做後台管理品牌 / 配件分類
+- 品牌 / 服務項目目前由前台用戶直接新增到共用資料庫
 - `updated_at` 目前未加 trigger，自動更新邏輯留待下一步

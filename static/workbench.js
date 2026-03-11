@@ -237,6 +237,25 @@ function normalizeLookupRows(rows) {
   }));
 }
 
+function normalizeLookupName(value) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function slugifyLookupName(value) {
+  return normalizeLookupName(value)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildLookupId(prefix, name) {
+  const slug = slugifyLookupName(name);
+  const suffix = uid().split("-").pop();
+  return `${prefix}-${slug || "custom"}-${suffix}`;
+}
+
 function normalizeVehicleModelName(value) {
   return (value || "").trim().replace(/\s+/g, " ");
 }
@@ -249,9 +268,10 @@ export async function fetchBrands() {
   const client = assertSupabaseConfigured();
   const { data, error } = await client
     .from("brands")
-    .select("id, name, sort_order")
+    .select("id, name, sort_order, created_at")
     .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (error) {
     throw error;
@@ -263,14 +283,96 @@ export async function fetchServiceItems() {
   const client = assertSupabaseConfigured();
   const { data, error } = await client
     .from("service_items")
-    .select("id, name, sort_order")
+    .select("id, name, sort_order, created_at")
     .eq("is_active", true)
-    .order("sort_order", { ascending: true });
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
 
   if (error) {
     throw error;
   }
   return normalizeLookupRows(data);
+}
+
+async function findLookupByName(table, normalizedName) {
+  const client = assertSupabaseConfigured();
+  const { data, error } = await client
+    .from(table)
+    .select("id, name, sort_order")
+    .eq("is_active", true)
+    .ilike("name", normalizedName)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data
+    ? {
+        id: data.id,
+        name: data.name,
+        sortOrder: data.sort_order,
+      }
+    : null;
+}
+
+async function insertLookupRow(table, prefix, name, extra = {}) {
+  const client = assertSupabaseConfigured();
+  const normalizedName = normalizeLookupName(name);
+  if (!normalizedName) {
+    throw new Error("請先輸入名稱。");
+  }
+
+  const existing = await findLookupByName(table, normalizedName);
+  if (existing) {
+    return existing;
+  }
+
+  const { data: lastRow, error: lastRowError } = await client
+    .from(table)
+    .select("sort_order")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (lastRowError) {
+    throw lastRowError;
+  }
+
+  const nextSortOrder = Number(lastRow?.sort_order || 0) + 10;
+  const { data, error } = await client
+    .from(table)
+    .insert({
+      id: buildLookupId(prefix, normalizedName),
+      name: normalizedName,
+      sort_order: nextSortOrder,
+      is_active: true,
+      ...extra,
+    })
+    .select("id, name, sort_order")
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return {
+    id: data.id,
+    name: data.name,
+    sortOrder: data.sort_order,
+  };
+}
+
+export async function createBrand(name) {
+  return insertLookupRow("brands", "brand", name);
+}
+
+export async function createServiceItem(name) {
+  return insertLookupRow("service_items", "service", name, {
+    category: "custom",
+  });
 }
 
 export async function fetchRecentVehicleModels(brandId, limit = 20) {
@@ -566,26 +668,13 @@ async function loadLookups() {
   };
 }
 
-export async function fetchCaptureSetsByDate(date) {
-  const client = assertSupabaseConfigured();
-  const lookups = await loadLookups();
-
-  const { data: sets, error: setError } = await client
-    .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at")
-    .eq("capture_date", date)
-    .order("created_at", { ascending: false });
-
-  if (setError) {
-    throw setError;
-  }
-
+async function hydrateCaptureSetRows(sets, lookups) {
   if (!sets?.length) {
     return [];
   }
 
   const setIds = sets.map((captureSet) => captureSet.id);
-  const { data: photos, error: photoError } = await client
+  const { data: photos, error: photoError } = await assertSupabaseConfigured()
     .from("photos")
     .select("id, capture_set_id, kind, service_item_id, item_note, storage_path, original_file_name, mime_type, width, height, sort_order, created_at")
     .in("capture_set_id", setIds)
@@ -610,12 +699,48 @@ export async function fetchCaptureSetsByDate(date) {
       vehicleModel: captureSet.vehicle_model || "",
       brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
       createdAt: captureSet.created_at,
+      updatedAt: captureSet.updated_at || captureSet.created_at,
       serviceItemLookup: lookups.serviceItemLookup,
     };
 
     const setPhotos = (photos || []).filter((photo) => photo.capture_set_id === captureSet.id);
     return groupPhotos(base, setPhotos, currentEdits, photoServiceItemMap);
   });
+}
+
+export async function fetchCaptureSetsByDate(date) {
+  const client = assertSupabaseConfigured();
+  const lookups = await loadLookups();
+
+  const { data: sets, error: setError } = await client
+    .from("capture_sets")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, updated_at")
+    .eq("capture_date", date)
+    .order("created_at", { ascending: false });
+
+  if (setError) {
+    throw setError;
+  }
+
+  return hydrateCaptureSetRows(sets || [], lookups);
+}
+
+export async function fetchRecentCheckInSets(limit = 24) {
+  const client = assertSupabaseConfigured();
+  const lookups = await loadLookups();
+
+  const { data: sets, error } = await client
+    .from("capture_sets")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    throw error;
+  }
+
+  const hydrated = await hydrateCaptureSetRows(sets || [], lookups);
+  return hydrated.filter((captureSet) => captureSet.vehiclePhotos.length > 0);
 }
 
 export async function fetchDatesWithUploads(year, month) {
@@ -685,31 +810,13 @@ async function uploadPhotoAsset(userId, captureDate, captureSetId, asset) {
   };
 }
 
-export async function createCaptureSet(payload) {
+async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, vehiclePhotos = [], accessoryEntries = [] }) {
   const client = assertSupabaseConfigured();
-  const user = await getCurrentUser();
-  const captureSetId = uid();
-  const captureDate = payload.captureDate || todayLocal();
-
-  const { error: insertSetError } = await client.from("capture_sets").insert({
-    id: captureSetId,
-    reference: payload.reference,
-    capture_date: captureDate,
-    notes: payload.notes || "",
-    brand_id: payload.brandId,
-    vehicle_model: payload.vehicleModel || "",
-    created_by: user.id,
-  });
-
-  if (insertSetError) {
-    throw insertSetError;
-  }
-
   const photoRows = [];
   const photoServiceItemRows = [];
 
-  for (const [index, asset] of payload.vehiclePhotos.entries()) {
-    const upload = await uploadPhotoAsset(user.id, captureDate, captureSetId, asset);
+  for (const [index, asset] of vehiclePhotos.entries()) {
+    const upload = await uploadPhotoAsset(userId, captureDate, captureSetId, asset);
     photoRows.push({
       id: upload.id,
       capture_set_id: captureSetId,
@@ -726,9 +833,9 @@ export async function createCaptureSet(payload) {
   }
 
   let accessorySortOrder = 1000;
-  for (const entry of payload.accessoryEntries) {
+  for (const entry of accessoryEntries) {
     for (const asset of entry.photos) {
-      const upload = await uploadPhotoAsset(user.id, captureDate, captureSetId, asset);
+      const upload = await uploadPhotoAsset(userId, captureDate, captureSetId, asset);
       const selectedItemIds = [...new Set((entry.itemIds || []).filter(Boolean))];
       photoRows.push({
         id: upload.id,
@@ -755,9 +862,11 @@ export async function createCaptureSet(payload) {
     }
   }
 
-  const { error: photoInsertError } = await client.from("photos").insert(photoRows);
-  if (photoInsertError) {
-    throw photoInsertError;
+  if (photoRows.length) {
+    const { error: photoInsertError } = await client.from("photos").insert(photoRows);
+    if (photoInsertError) {
+      throw photoInsertError;
+    }
   }
 
   if (photoServiceItemRows.length) {
@@ -766,6 +875,48 @@ export async function createCaptureSet(payload) {
       throw linkInsertError;
     }
   }
+}
+
+async function touchCaptureSet(captureSetId) {
+  const client = assertSupabaseConfigured();
+  const { error } = await client
+    .from("capture_sets")
+    .update({
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", captureSetId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export async function createCheckInSet(payload) {
+  const client = assertSupabaseConfigured();
+  const user = await getCurrentUser();
+  const captureSetId = uid();
+  const captureDate = payload.captureDate || todayLocal();
+
+  const { error: insertSetError } = await client.from("capture_sets").insert({
+    id: captureSetId,
+    reference: payload.reference,
+    capture_date: captureDate,
+    notes: payload.notes || "",
+    brand_id: payload.brandId,
+    vehicle_model: payload.vehicleModel || "",
+    created_by: user.id,
+  });
+
+  if (insertSetError) {
+    throw insertSetError;
+  }
+
+  await insertCaptureSetPhotos({
+    captureSetId,
+    captureDate,
+    userId: user.id,
+    vehiclePhotos: payload.vehiclePhotos || [],
+  });
 
   return {
     id: captureSetId,
@@ -773,6 +924,44 @@ export async function createCaptureSet(payload) {
     reference: payload.reference,
     vehicleModel: payload.vehicleModel || "",
   };
+}
+
+export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEntries) {
+  const client = assertSupabaseConfigured();
+  const user = await getCurrentUser();
+
+  const { data: captureSet, error: captureSetError } = await client
+    .from("capture_sets")
+    .select("id, reference, capture_date, vehicle_model")
+    .eq("id", captureSetId)
+    .single();
+
+  if (captureSetError) {
+    throw captureSetError;
+  }
+
+  await insertCaptureSetPhotos({
+    captureSetId,
+    captureDate: captureSet.capture_date,
+    userId: user.id,
+    accessoryEntries: accessoryEntries || [],
+  });
+  await touchCaptureSet(captureSetId);
+
+  return {
+    id: captureSet.id,
+    reference: captureSet.reference,
+    captureDate: captureSet.capture_date,
+    vehicleModel: captureSet.vehicle_model || "",
+  };
+}
+
+export async function createCaptureSet(payload) {
+  const captureSet = await createCheckInSet(payload);
+  if (payload.accessoryEntries?.length) {
+    await appendServiceEntriesToCaptureSet(captureSet.id, payload.accessoryEntries);
+  }
+  return captureSet;
 }
 
 export async function fetchPhotoDetail(photoId) {

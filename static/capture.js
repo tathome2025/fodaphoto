@@ -1,25 +1,22 @@
 import { requireAuthenticatedPage } from "./supabase-browser.js";
 import {
-  createCaptureSet,
+  appendServiceEntriesToCaptureSet,
+  createServiceItem,
   describeSupabaseError,
-  fetchBrands,
-  fetchRecentVehicleModels,
+  fetchRecentCheckInSets,
   fetchServiceItems,
   fileToDraftAsset,
-  rememberVehicleModel,
+  getSignedPhotoUrl,
   revokeDraftAsset,
-  todayLocal,
 } from "./workbench.js";
 
 const refs = {
   captureForm: document.querySelector("#captureForm"),
-  vehicleInput: document.querySelector("#vehicleInput"),
-  vehicleLibraryInput: document.querySelector("#vehicleLibraryInput"),
-  vehicleZone: document.querySelector("#vehicleZone"),
-  vehiclePreview: document.querySelector("#vehiclePreview"),
-  brandGrid: document.querySelector("#brandGrid"),
-  vehicleModelSummary: document.querySelector("#vehicleModelSummary"),
+  checkInVehicleList: document.querySelector("#checkInVehicleList"),
+  selectedVehicleSummary: document.querySelector("#selectedVehicleSummary"),
   accessoryList: document.querySelector("#accessoryList"),
+  customServiceInput: document.querySelector("#customServiceInput"),
+  addServiceItemBtn: document.querySelector("#addServiceItemBtn"),
   addAccessoryBtn: document.querySelector("#addAccessoryBtn"),
   saveSetBtn: document.querySelector("#saveSetBtn"),
   captureStatus: document.querySelector("#captureStatus"),
@@ -30,27 +27,16 @@ const refs = {
   closeCameraBtn: document.querySelector("#closeCameraBtn"),
   cancelCameraBtn: document.querySelector("#cancelCameraBtn"),
   shutterCameraBtn: document.querySelector("#shutterCameraBtn"),
-  modelOverlay: document.querySelector("#modelOverlay"),
-  modelOverlayBrand: document.querySelector("#modelOverlayBrand"),
-  modelForm: document.querySelector("#modelForm"),
-  vehicleModelInput: document.querySelector("#vehicleModelInput"),
-  recentModelList: document.querySelector("#recentModelList"),
-  closeModelBtn: document.querySelector("#closeModelBtn"),
-  cancelModelBtn: document.querySelector("#cancelModelBtn"),
 };
 
 const state = {
-  brands: [],
   serviceItems: [],
-  brandId: "",
-  vehicleModel: "",
-  vehiclePhotos: [],
   accessoryEntries: [],
+  checkInSets: [],
+  selectedCaptureSetId: "",
+  vehicleThumbUrls: new Map(),
   cameraTarget: null,
   cameraStream: null,
-  pendingBrandId: "",
-  recentModelsByBrand: new Map(),
-  loadingRecentBrandId: "",
 };
 
 function createAccessoryEntry() {
@@ -62,99 +48,25 @@ function createAccessoryEntry() {
   };
 }
 
+function normalizeText(value) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function mergeLookupItem(items, nextItem) {
+  return [...items.filter((item) => item.id !== nextItem.id), nextItem]
+    .sort((left, right) => {
+      if (left.sortOrder !== right.sortOrder) {
+        return left.sortOrder - right.sortOrder;
+      }
+      return left.name.localeCompare(right.name, "zh-Hant");
+    });
+}
+
 function setStatus(message, type) {
   refs.captureStatus.textContent = message;
   refs.captureStatus.className = "status-text";
   if (type) {
     refs.captureStatus.classList.add(`is-${type}`);
-  }
-}
-
-function isVehicleReady() {
-  return state.vehiclePhotos.length > 0;
-}
-
-function isBrandReady() {
-  return Boolean(state.brandId && state.vehicleModel);
-}
-
-function isAccessoryReady() {
-  return state.accessoryEntries.length > 0 && state.accessoryEntries.every((entry) => entry.itemIds.length > 0 && entry.photos.length > 0);
-}
-
-function flashAddAccessoryButton() {
-  refs.addAccessoryBtn.classList.remove("is-flashing");
-  window.requestAnimationFrame(() => {
-    refs.addAccessoryBtn.classList.add("is-flashing");
-    window.setTimeout(() => {
-      refs.addAccessoryBtn.classList.remove("is-flashing");
-    }, 1200);
-  });
-}
-
-function createAutoReference() {
-  const dateStamp = todayLocal().replace(/-/g, "");
-  const timeStamp = `${Date.now()}`.slice(-6);
-  return `AUTO-${dateStamp}-${timeStamp}`;
-}
-
-function clearAssets(list) {
-  list.forEach((asset) => revokeDraftAsset(asset));
-}
-
-function normalizeModelName(value) {
-  return (value || "").trim().replace(/\s+/g, " ");
-}
-
-function getBrandById(brandId) {
-  return state.brands.find((brand) => brand.id === brandId) || null;
-}
-
-function upsertRecentModelCache(brandId, model, lastUsedAt = new Date().toISOString()) {
-  const normalized = normalizeModelName(model);
-  if (!brandId || !normalized) {
-    return [];
-  }
-
-  const next = [
-    {
-      brandId,
-      model: normalized,
-      lastUsedAt,
-    },
-    ...getRecentModelsForBrand(brandId).filter((item) => item.model.toLowerCase() !== normalized.toLowerCase()),
-  ].slice(0, 20);
-
-  state.recentModelsByBrand.set(brandId, next);
-  return next;
-}
-
-function getRecentModelsForBrand(brandId) {
-  return state.recentModelsByBrand.get(brandId) || [];
-}
-
-async function loadRecentModelsForBrand(brandId, options = {}) {
-  if (!brandId) {
-    return [];
-  }
-
-  if (!options.force && state.recentModelsByBrand.has(brandId)) {
-    return getRecentModelsForBrand(brandId);
-  }
-
-  state.loadingRecentBrandId = brandId;
-  renderRecentModelList(brandId);
-  try {
-    const items = await fetchRecentVehicleModels(brandId, 20);
-    state.recentModelsByBrand.set(brandId, items);
-    return items;
-  } finally {
-    if (state.loadingRecentBrandId === brandId) {
-      state.loadingRecentBrandId = "";
-    }
-    if (!refs.modelOverlay.hidden && state.pendingBrandId === brandId) {
-      renderRecentModelList(brandId);
-    }
   }
 }
 
@@ -165,30 +77,15 @@ function isDirectCameraMode() {
   );
 }
 
-function getVehiclePromptText() {
-  return isDirectCameraMode()
-    ? "按一下拍照"
-    : "按一下拍照或上傳車輛照";
-}
-
 function getAccessoryPromptText() {
   return isDirectCameraMode()
-    ? "拍配件 / 維修相片"
-    : "拍配件 / 維修相片或上傳";
+    ? "拍安裝 / 維修 / 保養相片"
+    : "拍安裝 / 維修 / 保養相片或上傳";
 }
 
-function renderUploadActions(kind, entryId = "") {
+function renderUploadActions(entryId = "") {
   if (!isDirectCameraMode()) {
     return "";
-  }
-
-  if (kind === "vehicle") {
-    return `
-      <div class="upload-action-row">
-        <button class="primary-button upload-action-btn" type="button" data-open-vehicle-camera>拍照</button>
-        <button class="secondary-button upload-action-btn" type="button" data-open-vehicle-library>上傳相片</button>
-      </div>
-    `;
   }
 
   return `
@@ -220,175 +117,170 @@ function renderUploadCover(photo, altText, removeAttr, removeValue) {
   `;
 }
 
-function renderVehiclePreview() {
-  refs.vehicleZone.classList.toggle("has-preview", state.vehiclePhotos.length > 0);
-  refs.vehicleInput.disabled = state.vehiclePhotos.length > 0 || isDirectCameraMode();
-  if (!state.vehiclePhotos.length) {
-    refs.vehiclePreview.innerHTML = `
-      <div class="upload-prompt">
-        <strong>${getVehiclePromptText()}</strong>
-        <small>只可上傳一張車輛照。</small>
-        ${renderUploadActions("vehicle")}
+function flashAddAccessoryButton() {
+  refs.addAccessoryBtn.classList.remove("is-flashing");
+  window.requestAnimationFrame(() => {
+    refs.addAccessoryBtn.classList.add("is-flashing");
+    window.setTimeout(() => {
+      refs.addAccessoryBtn.classList.remove("is-flashing");
+    }, 1200);
+  });
+}
+
+function getSelectedCaptureSet() {
+  return state.checkInSets.find((captureSet) => captureSet.id === state.selectedCaptureSetId) || null;
+}
+
+function hasDraftServiceData() {
+  return state.accessoryEntries.some((entry) =>
+    entry.itemIds.length > 0
+    || entry.photos.length > 0
+    || normalizeText(entry.notes)
+  );
+}
+
+function clearAccessoryAssets() {
+  state.accessoryEntries.forEach((entry) => {
+    entry.photos.forEach((asset) => revokeDraftAsset(asset));
+  });
+}
+
+function resetAccessoryEntries() {
+  clearAccessoryAssets();
+  state.accessoryEntries = [createAccessoryEntry()];
+  renderAccessoryList();
+}
+
+function renderSelectedVehicleSummary() {
+  const selected = getSelectedCaptureSet();
+  if (!selected) {
+    refs.selectedVehicleSummary.innerHTML = `
+      <div class="empty-state compact">
+        <strong>請先選擇已 Check-in 車輛</strong>
+        <p class="muted-copy">上方會顯示最近已建立的車輛案件。</p>
       </div>
     `;
-
-    refs.vehiclePreview.querySelector("[data-open-vehicle-camera]")?.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      await openCameraOverlay({ kind: "vehicle" });
-    });
-
-    refs.vehiclePreview.querySelector("[data-open-vehicle-library]")?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      refs.vehicleLibraryInput.click();
-    });
     return;
   }
 
-  refs.vehiclePreview.innerHTML = state.vehiclePhotos.map((photo, index) => renderUploadCover(
-    photo,
-    `車輛照 ${index + 1}`,
-    "data-remove-vehicle",
-    photo.localId
-  )).join("");
+  const vehiclePhoto = selected.vehiclePhotos[0];
+  const thumbUrl = state.vehicleThumbUrls.get(selected.id);
+  refs.selectedVehicleSummary.innerHTML = `
+    <article class="selected-vehicle-card">
+      <div class="selected-vehicle-thumb">
+        ${thumbUrl
+          ? `<img src="${thumbUrl}" alt="${selected.brandName}${selected.vehicleModel ? ` ${selected.vehicleModel}` : ""}">`
+          : vehiclePhoto
+            ? `<div class="vehicle-thumb-placeholder">載入縮圖中</div>`
+            : `<div class="vehicle-thumb-placeholder">未有車輛相片</div>`}
+      </div>
+      <div class="selected-vehicle-body">
+        <p class="eyebrow">Selected Vehicle</p>
+        <h3>${selected.brandName}${selected.vehicleModel ? ` ${selected.vehicleModel}` : ""}</h3>
+        <div class="chip-row">
+          <span class="meta-chip">${selected.reference}</span>
+          <span class="meta-chip">${selected.captureDate}</span>
+          <span class="meta-chip">已入 ${selected.accessoryEntries.length} 項服務</span>
+        </div>
+        <p class="muted-copy">${selected.notes || "此車輛已完成 Check-in，可在下方新增安裝、維修或保養紀錄。"}</p>
+      </div>
+    </article>
+  `;
+}
 
-  refs.vehiclePreview.querySelectorAll("[data-remove-vehicle]").forEach((button) => {
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const index = state.vehiclePhotos.findIndex((photo) => photo.localId === button.dataset.removeVehicle);
-      if (index === -1) {
+function renderCheckInVehicleList() {
+  if (!state.checkInSets.length) {
+    refs.checkInVehicleList.innerHTML = `
+      <div class="empty-state">
+        <strong>暫時未有已 Check-in 車輛</strong>
+        <p class="muted-copy">請先到 Check-in 頁建立車輛資料，然後再回來拍安裝維修保養相片。</p>
+      </div>
+    `;
+    renderSelectedVehicleSummary();
+    return;
+  }
+
+  refs.checkInVehicleList.innerHTML = state.checkInSets.map((captureSet) => {
+    const thumbUrl = state.vehicleThumbUrls.get(captureSet.id);
+    const vehiclePhoto = captureSet.vehiclePhotos[0];
+    return `
+      <button
+        class="vehicle-select-card ${captureSet.id === state.selectedCaptureSetId ? "is-selected" : ""}"
+        type="button"
+        data-select-capture-set="${captureSet.id}"
+      >
+        <div class="vehicle-select-thumb">
+          ${thumbUrl
+            ? `<img src="${thumbUrl}" alt="${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}">`
+            : vehiclePhoto
+              ? `<div class="vehicle-thumb-placeholder">載入縮圖中</div>`
+              : `<div class="vehicle-thumb-placeholder">未有車輛相片</div>`}
+        </div>
+        <div class="vehicle-select-body">
+          <strong>${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}</strong>
+          <span>${captureSet.reference}</span>
+          <span>${captureSet.captureDate} · ${captureSet.accessoryEntries.length} 項服務</span>
+        </div>
+      </button>
+    `;
+  }).join("");
+
+  refs.checkInVehicleList.querySelectorAll("[data-select-capture-set]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const nextId = button.dataset.selectCaptureSet;
+      if (nextId === state.selectedCaptureSetId) {
         return;
       }
-      revokeDraftAsset(state.vehiclePhotos[index]);
-      state.vehiclePhotos.splice(index, 1);
-      renderVehiclePreview();
+      if (hasDraftServiceData()) {
+        resetAccessoryEntries();
+        setStatus("已切換車輛，未儲存的服務草稿已清空。", "danger");
+      }
+      state.selectedCaptureSetId = nextId;
+      renderCheckInVehicleList();
+      renderSelectedVehicleSummary();
     });
   });
+
+  renderSelectedVehicleSummary();
 }
 
-function renderVehicleModelSummary() {
-  const brand = getBrandById(state.brandId);
-  const hasModel = Boolean(state.vehicleModel);
-  refs.vehicleModelSummary.hidden = !hasModel;
-  if (!hasModel) {
-    refs.vehicleModelSummary.textContent = "";
-    return;
-  }
-  refs.vehicleModelSummary.textContent = `已選車型：${brand?.name || state.brandId} · ${state.vehicleModel}`;
-  refs.vehicleModelSummary.className = "status-text is-success";
-}
+async function hydrateVehicleThumbs() {
+  const pendingSets = state.checkInSets.filter((captureSet) =>
+    captureSet.vehiclePhotos[0]?.storagePath
+    && !state.vehicleThumbUrls.has(captureSet.id)
+  );
 
-function renderRecentModelList(brandId) {
-  if (state.loadingRecentBrandId === brandId) {
-    refs.recentModelList.innerHTML = `
-      <div class="empty-state">
-        <strong>正在載入共用型號資料</strong>
-        <p class="muted-copy">稍候即可選擇這個品牌最近使用過的車型。</p>
-      </div>
-    `;
+  if (!pendingSets.length) {
     return;
   }
 
-  const items = getRecentModelsForBrand(brandId);
-  if (!items.length) {
-    refs.recentModelList.innerHTML = `
-      <div class="empty-state">
-        <strong>這個品牌暫時沒有共用型號紀錄</strong>
-        <p class="muted-copy">輸入一次後，其他設備和帳號也可在這裡直接選擇。</p>
-      </div>
-    `;
-    return;
-  }
-
-  refs.recentModelList.innerHTML = items.map((item) => `
-    <button class="choice-button" type="button" data-recent-model="${item.model}">
-      <strong>${item.model}</strong>
-      <span>此品牌最近輸入過</span>
-    </button>
-  `).join("");
-
-  refs.recentModelList.querySelectorAll("[data-recent-model]").forEach((button) => {
-    button.addEventListener("click", () => {
-      refs.vehicleModelInput.value = button.dataset.recentModel;
-      refs.vehicleModelInput.focus();
-      refs.vehicleModelInput.select();
-    });
-  });
-}
-
-async function openModelOverlay(brandId) {
-  state.pendingBrandId = brandId;
-  const brand = getBrandById(brandId);
-  refs.modelOverlayBrand.textContent = brand?.name || brandId;
-  refs.vehicleModelInput.value = state.brandId === brandId ? state.vehicleModel : "";
-  renderRecentModelList(brandId);
-  refs.modelOverlay.hidden = false;
-  document.body.classList.add("model-open");
-  try {
-    await loadRecentModelsForBrand(brandId, { force: true });
-  } catch (error) {
-    setStatus(`未能讀取 ${brand?.name || brandId} 的共用型號資料。`, "danger");
-  }
-  window.setTimeout(() => {
-    refs.vehicleModelInput.focus();
-    refs.vehicleModelInput.select();
-  }, 20);
-}
-
-function closeModelOverlay() {
-  refs.modelOverlay.hidden = true;
-  document.body.classList.remove("model-open");
-  state.pendingBrandId = "";
-  refs.vehicleModelInput.value = "";
-}
-
-async function handleModelSubmit(event) {
-  event.preventDefault();
-  const model = normalizeModelName(refs.vehicleModelInput.value);
-  if (!state.pendingBrandId) {
-    closeModelOverlay();
-    return;
-  }
-  if (!model) {
-    setStatus("請先輸入車輛型號。", "danger");
-    refs.vehicleModelInput.focus();
-    return;
-  }
-
-  state.brandId = state.pendingBrandId;
-  state.vehicleModel = model;
-  upsertRecentModelCache(state.brandId, state.vehicleModel);
-  renderBrands();
-  closeModelOverlay();
-
-  try {
-    const saved = await rememberVehicleModel(state.brandId, state.vehicleModel);
-    if (saved) {
-      upsertRecentModelCache(state.brandId, saved.model, saved.lastUsedAt);
+  await Promise.all(pendingSets.map(async (captureSet) => {
+    try {
+      const thumbUrl = await getSignedPhotoUrl(captureSet.vehiclePhotos[0].storagePath, {
+        width: 360,
+        height: 270,
+      });
+      state.vehicleThumbUrls.set(captureSet.id, thumbUrl);
+    } catch (_error) {
+      state.vehicleThumbUrls.set(captureSet.id, "");
     }
-    setStatus(`已選擇 ${getBrandById(state.brandId)?.name || state.brandId} · ${state.vehicleModel}`, "success");
-  } catch (error) {
-    setStatus(`已選擇 ${getBrandById(state.brandId)?.name || state.brandId} · ${state.vehicleModel}，但未能同步共用型號資料。`, "danger");
-  }
+  }));
+
+  renderCheckInVehicleList();
 }
 
-function renderBrands() {
-  refs.brandGrid.innerHTML = state.brands.map((brand) => `
-    <button class="choice-button ${state.brandId === brand.id ? "is-selected" : ""}" type="button" data-brand-id="${brand.id}">
-      <strong>${brand.name}</strong>
-      <span>${state.brandId === brand.id && state.vehicleModel ? state.vehicleModel : "此案件車輛品牌"}</span>
-    </button>
-  `).join("");
+async function loadCheckInSets(options = {}) {
+  const previousSelectedId = options.keepSelection ? state.selectedCaptureSetId : "";
+  state.checkInSets = await fetchRecentCheckInSets(24);
 
-  refs.brandGrid.querySelectorAll("[data-brand-id]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      await openModelOverlay(button.dataset.brandId);
-    });
-  });
+  if (previousSelectedId && state.checkInSets.some((captureSet) => captureSet.id === previousSelectedId)) {
+    state.selectedCaptureSetId = previousSelectedId;
+  } else {
+    state.selectedCaptureSetId = state.checkInSets[0]?.id || "";
+  }
 
-  renderVehicleModelSummary();
+  renderCheckInVehicleList();
+  await hydrateVehicleThumbs();
 }
 
 function renderAccessoryPreview(entry) {
@@ -396,8 +288,8 @@ function renderAccessoryPreview(entry) {
     return `
       <div class="upload-prompt">
         <strong>${getAccessoryPromptText()}</strong>
-        <small>只可上傳一張相片。</small>
-        ${renderUploadActions("accessory", entry.id)}
+        <small>每個項目只可上傳一張相片。</small>
+        ${renderUploadActions(entry.id)}
       </div>
     `;
   }
@@ -412,7 +304,7 @@ function renderAccessoryPreview(entry) {
 
 function formatAccessorySelection(entry) {
   if (!entry.itemIds.length) {
-    return "可選多於一項配件或維修項目。";
+    return "可選多於一項安裝、維修或保養項目。";
   }
 
   return `已選：${state.serviceItems
@@ -434,8 +326,8 @@ function renderAccessoryList() {
   if (!state.accessoryEntries.length) {
     refs.accessoryList.innerHTML = `
       <div class="empty-state">
-        <strong>尚未加入配件或維修項目</strong>
-        <p class="muted-copy">每加入一個項目，就可以上傳該項目的相片並選分類。</p>
+        <strong>尚未加入安裝 / 維修 / 保養項目</strong>
+        <p class="muted-copy">每加入一個項目，就可以上傳該項目的相片並記錄分類。</p>
       </div>
     `;
     return;
@@ -444,7 +336,7 @@ function renderAccessoryList() {
   refs.accessoryList.innerHTML = state.accessoryEntries.map((entry, index) => `
     <article class="accessory-card">
       <div class="accessory-head">
-        <h3>配件 / 維修 ${String(index + 1).padStart(2, "0")}</h3>
+        <h3>項目 ${String(index + 1).padStart(2, "0")}</h3>
         <button class="tiny-button" type="button" data-remove-entry="${entry.id}">移除</button>
       </div>
 
@@ -459,7 +351,7 @@ function renderAccessoryList() {
 
       <div class="field-wide">
         <label for="notes-${entry.id}">項目備註</label>
-        <textarea id="notes-${entry.id}" placeholder="例如：前避震漏油，已更換彈簧及塔頂膠。">${entry.notes || ""}</textarea>
+        <textarea id="notes-${entry.id}" placeholder="例如：更換前避震、四輪定位、保養機油及油隔。">${entry.notes || ""}</textarea>
       </div>
     </article>
   `).join("");
@@ -470,7 +362,7 @@ function renderAccessoryList() {
       if (index === -1) {
         return;
       }
-      clearAssets(state.accessoryEntries[index].photos);
+      state.accessoryEntries[index].photos.forEach((asset) => revokeDraftAsset(asset));
       state.accessoryEntries.splice(index, 1);
       renderAccessoryList();
     });
@@ -517,19 +409,15 @@ function renderAccessoryList() {
 
   refs.accessoryList.querySelectorAll("[data-camera-entry]").forEach((zone) => {
     zone.addEventListener("click", async (event) => {
-      if (!isDirectCameraMode()) {
+      if (!isDirectCameraMode() || event.target.closest("button")) {
         return;
       }
-      if (event.target.closest("button")) {
-        return;
-      }
-      const entryId = zone.dataset.cameraEntry;
-      const entry = state.accessoryEntries.find((record) => record.id === entryId);
+      const entry = state.accessoryEntries.find((record) => record.id === zone.dataset.cameraEntry);
       if (!entry || entry.photos.length > 0) {
         return;
       }
       event.preventDefault();
-      await openCameraOverlay({ kind: "accessory", entryId });
+      await openCameraOverlay({ kind: "accessory", entryId: entry.id });
     });
   });
 
@@ -545,9 +433,7 @@ function renderAccessoryList() {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const entryId = button.dataset.openEntryLibrary;
-      const input = refs.accessoryList.querySelector(`#library-${entryId}`);
-      input?.click();
+      refs.accessoryList.querySelector(`#library-${button.dataset.openEntryLibrary}`)?.click();
     });
   });
 
@@ -556,13 +442,6 @@ function renderAccessoryList() {
       const entryId = input.id.replace("upload-", "").replace("library-", "");
       const entry = state.accessoryEntries.find((record) => record.id === entryId);
       if (!entry || !input.files?.length) {
-        return;
-      }
-
-      if (entry.photos.length > 0) {
-        setStatus("每個配件項目只可上傳一張。要再加入相片，請按「加入更多配件」。", "danger");
-        flashAddAccessoryButton();
-        input.value = "";
         return;
       }
 
@@ -578,14 +457,12 @@ function renderAccessoryList() {
 
   refs.accessoryList.querySelectorAll("textarea").forEach((textarea) => {
     textarea.addEventListener("input", () => {
-      const entryId = textarea.id.replace("notes-", "");
-      const entry = state.accessoryEntries.find((record) => record.id === entryId);
+      const entry = state.accessoryEntries.find((record) => record.id === textarea.id.replace("notes-", ""));
       if (entry) {
         entry.notes = textarea.value;
       }
     });
   });
-
 }
 
 async function applyAccessoryFile(entry, file) {
@@ -594,48 +471,15 @@ async function applyAccessoryFile(entry, file) {
   }
 
   if (entry.photos.length > 0) {
-    setStatus("每個配件項目只可上傳一張。要再加入相片，請按「加入更多配件」。", "danger");
+    setStatus("每個項目只可上傳一張相片。要再加入相片，請按「加入更多項目」。", "danger");
     flashAddAccessoryButton();
     return;
   }
 
-  setStatus("處理配件相片中...", "");
-  const prepared = await fileToDraftAsset(file);
-  entry.photos = [prepared];
+  setStatus("處理項目相片中...", "");
+  entry.photos = [await fileToDraftAsset(file)];
   renderAccessoryList();
-  setStatus("已加入配件相片。", "success");
-}
-
-async function handleVehicleUpload(files) {
-  if (!files.length) {
-    return;
-  }
-
-  await applyVehicleFile(files[0]);
-}
-
-async function applyVehicleFile(file) {
-  if (!file) {
-    return;
-  }
-
-  if (state.vehiclePhotos.length > 0) {
-    setStatus("車輛照只可上傳一張，如需更換請先移除。", "danger");
-    refs.vehicleInput.value = "";
-    return;
-  }
-
-  try {
-    setStatus("處理車輛相片中...", "");
-    const prepared = await fileToDraftAsset(file);
-    state.vehiclePhotos = [prepared];
-    renderVehiclePreview();
-    setStatus("已加入車輛照。", "success");
-  } catch (error) {
-    setStatus(describeSupabaseError(error), "danger");
-  } finally {
-    refs.vehicleInput.value = "";
-  }
+  setStatus("已加入項目相片。", "success");
 }
 
 async function requestCameraStream() {
@@ -672,7 +516,7 @@ async function openCameraOverlay(target) {
     return;
   }
 
-  refs.cameraTitle.textContent = target.kind === "vehicle" ? "拍車輛照" : "拍配件 / 維修相片";
+  refs.cameraTitle.textContent = "拍安裝 / 維修 / 保養相片";
   state.cameraTarget = target;
   refs.cameraOverlay.hidden = false;
   document.body.classList.add("camera-open");
@@ -687,16 +531,15 @@ async function openCameraOverlay(target) {
   }
 }
 
-function buildCapturedFile(blob, target) {
+function buildCapturedFile(blob) {
   const stamp = Date.now();
-  const prefix = target.kind === "vehicle" ? "vehicle" : "accessory";
   if (typeof File === "function") {
-    return new File([blob], `${prefix}-${stamp}.jpg`, {
+    return new File([blob], `service-${stamp}.jpg`, {
       type: "image/jpeg",
       lastModified: stamp,
     });
   }
-  blob.name = `${prefix}-${stamp}.jpg`;
+  blob.name = `service-${stamp}.jpg`;
   return blob;
 }
 
@@ -729,15 +572,11 @@ async function handleCameraCapture() {
         0.92
       );
     });
-    const file = buildCapturedFile(blob, target);
+    const file = buildCapturedFile(blob);
     await closeCameraOverlay();
-    if (target.kind === "vehicle") {
-      await applyVehicleFile(file);
-      return;
-    }
     const entry = state.accessoryEntries.find((record) => record.id === target.entryId);
     if (!entry) {
-      setStatus("找不到目前的配件項目，請重新拍照。", "danger");
+      setStatus("找不到目前項目，請重新拍照。", "danger");
       return;
     }
     await applyAccessoryFile(entry, file);
@@ -749,52 +588,51 @@ async function handleCameraCapture() {
 }
 
 function validateBeforeSave() {
-  if (!isVehicleReady()) {
-    return "請先加入至少 1 張車輛照。";
-  }
-  if (!isBrandReady()) {
-    return "請先選擇車輛品牌並輸入車輛型號。";
+  if (!state.selectedCaptureSetId) {
+    return "請先選擇已 Check-in 車輛。";
   }
   if (!state.accessoryEntries.length) {
-    return "請至少加入 1 個配件或維修項目。";
+    return "請至少加入 1 個安裝、維修或保養項目。";
   }
   const invalidEntry = state.accessoryEntries.find((entry) => !entry.itemIds.length || !entry.photos.length);
   if (invalidEntry) {
-    return "每張配件 / 維修相都需要至少選 1 項分類並上傳 1 張相片。";
+    return "每個項目都需要至少選 1 項分類並上傳 1 張相片。";
   }
   return "";
 }
 
-function resetForm() {
-  clearAssets(state.vehiclePhotos);
-  state.accessoryEntries.forEach((entry) => clearAssets(entry.photos));
-
-  refs.vehicleInput.value = "";
-  refs.vehicleLibraryInput.value = "";
-  state.brandId = "";
-  state.vehicleModel = "";
-  state.vehiclePhotos = [];
-  state.accessoryEntries = [createAccessoryEntry()];
-  renderVehiclePreview();
-  renderBrands();
-  renderAccessoryList();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+function collectPayload() {
+  return state.accessoryEntries.map((entry) => ({
+    itemIds: [...entry.itemIds],
+    notes: entry.notes || "",
+    photos: entry.photos,
+  }));
 }
 
-function collectPayload() {
-  return {
-    reference: createAutoReference(),
-    captureDate: todayLocal(),
-    notes: "",
-    brandId: state.brandId,
-    vehicleModel: state.vehicleModel,
-    vehiclePhotos: state.vehiclePhotos,
-    accessoryEntries: state.accessoryEntries.map((entry) => ({
-      itemIds: [...entry.itemIds],
-      notes: entry.notes || "",
-      photos: entry.photos,
-    })),
-  };
+async function handleCreateServiceItem() {
+  const nextName = normalizeText(refs.customServiceInput.value);
+  if (!nextName) {
+    setStatus("請先輸入未有的項目名稱。", "danger");
+    refs.customServiceInput.focus();
+    return;
+  }
+
+  refs.addServiceItemBtn.disabled = true;
+  try {
+    const created = await createServiceItem(nextName);
+    state.serviceItems = mergeLookupItem(state.serviceItems, created);
+    refs.customServiceInput.value = "";
+    const entry = state.accessoryEntries[state.accessoryEntries.length - 1];
+    if (entry && !entry.itemIds.includes(created.id)) {
+      entry.itemIds = [...entry.itemIds, created.id];
+    }
+    renderAccessoryList();
+    setStatus(`已加入新項目「${created.name}」，之後所有用戶都可直接選用。`, "success");
+  } catch (error) {
+    setStatus(describeSupabaseError(error), "danger");
+  } finally {
+    refs.addServiceItemBtn.disabled = false;
+  }
 }
 
 async function handleSubmit(event) {
@@ -806,12 +644,13 @@ async function handleSubmit(event) {
   }
 
   refs.saveSetBtn.disabled = true;
-  setStatus("正在上傳至 Supabase...", "");
+  setStatus("正在上傳安裝維修保養資料...", "");
 
   try {
-    const captureSet = await createCaptureSet(collectPayload());
-    setStatus(`案件 ${captureSet.reference} 已儲存。`, "success");
-    resetForm();
+    const captureSet = await appendServiceEntriesToCaptureSet(state.selectedCaptureSetId, collectPayload());
+    resetAccessoryEntries();
+    await loadCheckInSets({ keepSelection: true });
+    setStatus(`已為案件 ${captureSet.reference} 新增安裝維修保養資料。`, "success");
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
@@ -820,37 +659,21 @@ async function handleSubmit(event) {
 }
 
 function bindEvents() {
-  refs.vehicleInput.addEventListener("change", async () => {
-    if (refs.vehicleInput.files?.length) {
-      await handleVehicleUpload(refs.vehicleInput.files);
-    }
-  });
-
-  refs.vehicleLibraryInput.addEventListener("change", async () => {
-    if (refs.vehicleLibraryInput.files?.length) {
-      await handleVehicleUpload(refs.vehicleLibraryInput.files);
-    }
-    refs.vehicleLibraryInput.value = "";
-  });
-
-  refs.vehicleZone.addEventListener("click", async (event) => {
-    if (!isDirectCameraMode()) {
-      return;
-    }
-    if (event.target.closest("button") || state.vehiclePhotos.length > 0) {
-      return;
-    }
-    event.preventDefault();
-    await openCameraOverlay({ kind: "vehicle" });
-  });
-
   refs.addAccessoryBtn.addEventListener("click", () => {
     state.accessoryEntries.push(createAccessoryEntry());
     renderAccessoryList();
-    setStatus("已新增一個配件項目。", "");
+    setStatus("已新增一個服務項目。", "");
     window.requestAnimationFrame(() => {
       refs.accessoryList.lastElementChild?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
+  });
+  refs.addServiceItemBtn.addEventListener("click", handleCreateServiceItem);
+  refs.customServiceInput.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
+    event.preventDefault();
+    await handleCreateServiceItem();
   });
   refs.captureForm.addEventListener("submit", handleSubmit);
   refs.closeCameraBtn.addEventListener("click", closeCameraOverlay);
@@ -861,36 +684,32 @@ function bindEvents() {
       await closeCameraOverlay();
     }
   });
-  refs.modelForm.addEventListener("submit", handleModelSubmit);
-  refs.closeModelBtn.addEventListener("click", closeModelOverlay);
-  refs.cancelModelBtn.addEventListener("click", closeModelOverlay);
-  refs.modelOverlay.addEventListener("click", (event) => {
-    if (event.target === refs.modelOverlay) {
-      closeModelOverlay();
-    }
-  });
 
   window.addEventListener("beforeunload", () => {
     stopCameraStream();
-    clearAssets(state.vehiclePhotos);
-    state.accessoryEntries.forEach((entry) => clearAssets(entry.photos));
+    clearAccessoryAssets();
   });
 }
 
 async function init() {
   await requireAuthenticatedPage("../index.html");
-  setStatus("正在載入品牌與配件分類...", "");
   state.accessoryEntries = [createAccessoryEntry()];
-  renderVehiclePreview();
   renderAccessoryList();
+  setStatus("正在載入已 Check-in 車輛與服務項目...", "");
 
   try {
-    const [brands, serviceItems] = await Promise.all([fetchBrands(), fetchServiceItems()]);
-    state.brands = brands;
+    const [serviceItems] = await Promise.all([
+      fetchServiceItems(),
+      loadCheckInSets(),
+    ]);
     state.serviceItems = serviceItems;
-    renderBrands();
     renderAccessoryList();
-    setStatus("已連接 Supabase，可以開始拍照分類。", "success");
+    setStatus(
+      state.checkInSets.length
+        ? "已連接 Supabase，可選擇車輛後開始輸入安裝維修保養資料。"
+        : "已連接 Supabase，但暫時未有已 Check-in 車輛。",
+      state.checkInSets.length ? "success" : ""
+    );
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   }

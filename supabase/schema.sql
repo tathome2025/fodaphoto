@@ -173,12 +173,42 @@ create policy "brands readable by authenticated users"
   to authenticated
   using (true);
 
+drop policy if exists "brands insert by authenticated users" on public.brands;
+create policy "brands insert by authenticated users"
+  on public.brands
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "brands update by authenticated users" on public.brands;
+create policy "brands update by authenticated users"
+  on public.brands
+  for update
+  to authenticated
+  using (true)
+  with check (true);
+
 drop policy if exists "service items readable by authenticated users" on public.service_items;
 create policy "service items readable by authenticated users"
   on public.service_items
   for select
   to authenticated
   using (true);
+
+drop policy if exists "service items insert by authenticated users" on public.service_items;
+create policy "service items insert by authenticated users"
+  on public.service_items
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "service items update by authenticated users" on public.service_items;
+create policy "service items update by authenticated users"
+  on public.service_items
+  for update
+  to authenticated
+  using (true)
+  with check (true);
 
 drop policy if exists "brand vehicle models readable by authenticated users" on public.brand_vehicle_models;
 create policy "brand vehicle models readable by authenticated users"
@@ -203,29 +233,33 @@ create policy "brand vehicle models update by authenticated users"
   with check (true);
 
 drop policy if exists "capture sets read own" on public.capture_sets;
-create policy "capture sets read own"
+drop policy if exists "capture sets read team" on public.capture_sets;
+create policy "capture sets read team"
   on public.capture_sets
   for select
   to authenticated
-  using (created_by = auth.uid());
+  using (true);
 
 drop policy if exists "capture sets insert own" on public.capture_sets;
-create policy "capture sets insert own"
+drop policy if exists "capture sets insert team" on public.capture_sets;
+create policy "capture sets insert team"
   on public.capture_sets
   for insert
   to authenticated
-  with check (created_by = auth.uid());
+  with check (true);
 
 drop policy if exists "capture sets update own" on public.capture_sets;
-create policy "capture sets update own"
+drop policy if exists "capture sets update team" on public.capture_sets;
+create policy "capture sets update team"
   on public.capture_sets
   for update
   to authenticated
-  using (created_by = auth.uid())
-  with check (created_by = auth.uid());
+  using (true)
+  with check (true);
 
 drop policy if exists "photos read own set" on public.photos;
-create policy "photos read own set"
+drop policy if exists "photos read team set" on public.photos;
+create policy "photos read team set"
   on public.photos
   for select
   to authenticated
@@ -234,12 +268,12 @@ create policy "photos read own set"
       select 1
       from public.capture_sets
       where capture_sets.id = photos.capture_set_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photos insert own set" on public.photos;
-create policy "photos insert own set"
+drop policy if exists "photos insert team set" on public.photos;
+create policy "photos insert team set"
   on public.photos
   for insert
   to authenticated
@@ -248,12 +282,12 @@ create policy "photos insert own set"
       select 1
       from public.capture_sets
       where capture_sets.id = photos.capture_set_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photos update own set" on public.photos;
-create policy "photos update own set"
+drop policy if exists "photos update team set" on public.photos;
+create policy "photos update team set"
   on public.photos
   for update
   to authenticated
@@ -262,7 +296,6 @@ create policy "photos update own set"
       select 1
       from public.capture_sets
       where capture_sets.id = photos.capture_set_id
-        and capture_sets.created_by = auth.uid()
     )
   )
   with check (
@@ -270,12 +303,12 @@ create policy "photos update own set"
       select 1
       from public.capture_sets
       where capture_sets.id = photos.capture_set_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photo service items read own photo" on public.photo_service_items;
-create policy "photo service items read own photo"
+drop policy if exists "photo service items read team photo" on public.photo_service_items;
+create policy "photo service items read team photo"
   on public.photo_service_items
   for select
   to authenticated
@@ -283,14 +316,13 @@ create policy "photo service items read own photo"
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_service_items.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photo service items insert own photo" on public.photo_service_items;
-create policy "photo service items insert own photo"
+drop policy if exists "photo service items insert team photo" on public.photo_service_items;
+create policy "photo service items insert team photo"
   on public.photo_service_items
   for insert
   to authenticated
@@ -298,14 +330,13 @@ create policy "photo service items insert own photo"
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_service_items.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photo service items update own photo" on public.photo_service_items;
-create policy "photo service items update own photo"
+drop policy if exists "photo service items update team photo" on public.photo_service_items;
+create policy "photo service items update team photo"
   on public.photo_service_items
   for update
   to authenticated
@@ -313,23 +344,20 @@ create policy "photo service items update own photo"
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_service_items.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   )
   with check (
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_service_items.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photo service items delete own photo" on public.photo_service_items;
-create policy "photo service items delete own photo"
+drop policy if exists "photo service items delete team photo" on public.photo_service_items;
+create policy "photo service items delete team photo"
   on public.photo_service_items
   for delete
   to authenticated
@@ -337,9 +365,7 @@ create policy "photo service items delete own photo"
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_service_items.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
@@ -366,7 +392,8 @@ create policy "filters update own"
   with check (created_by = auth.uid());
 
 drop policy if exists "photo edits read own photo" on public.photo_edits;
-create policy "photo edits read own photo"
+drop policy if exists "photo edits read team photo" on public.photo_edits;
+create policy "photo edits read team photo"
   on public.photo_edits
   for select
   to authenticated
@@ -374,14 +401,13 @@ create policy "photo edits read own photo"
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_edits.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photo edits insert own photo" on public.photo_edits;
-create policy "photo edits insert own photo"
+drop policy if exists "photo edits insert team photo" on public.photo_edits;
+create policy "photo edits insert team photo"
   on public.photo_edits
   for insert
   to authenticated
@@ -390,14 +416,13 @@ create policy "photo edits insert own photo"
     and exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_edits.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
 drop policy if exists "photo edits update own photo" on public.photo_edits;
-create policy "photo edits update own photo"
+drop policy if exists "photo edits update team photo" on public.photo_edits;
+create policy "photo edits update team photo"
   on public.photo_edits
   for update
   to authenticated
@@ -405,18 +430,14 @@ create policy "photo edits update own photo"
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_edits.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   )
   with check (
     exists (
       select 1
       from public.photos
-      join public.capture_sets on capture_sets.id = photos.capture_set_id
       where photos.id = photo_edits.photo_id
-        and capture_sets.created_by = auth.uid()
     )
   );
 
@@ -445,48 +466,37 @@ set
   allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "storage read own originals" on storage.objects;
-create policy "storage read own originals"
+drop policy if exists "storage read team originals" on storage.objects;
+create policy "storage read team originals"
   on storage.objects
   for select
   to authenticated
-  using (
-    bucket_id = 'garage-originals'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  using (bucket_id = 'garage-originals');
 
 drop policy if exists "storage insert own originals" on storage.objects;
-create policy "storage insert own originals"
+drop policy if exists "storage insert team originals" on storage.objects;
+create policy "storage insert team originals"
   on storage.objects
   for insert
   to authenticated
-  with check (
-    bucket_id = 'garage-originals'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  with check (bucket_id = 'garage-originals');
 
 drop policy if exists "storage update own originals" on storage.objects;
-create policy "storage update own originals"
+drop policy if exists "storage update team originals" on storage.objects;
+create policy "storage update team originals"
   on storage.objects
   for update
   to authenticated
-  using (
-    bucket_id = 'garage-originals'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  )
-  with check (
-    bucket_id = 'garage-originals'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  using (bucket_id = 'garage-originals')
+  with check (bucket_id = 'garage-originals');
 
 drop policy if exists "storage delete own originals" on storage.objects;
-create policy "storage delete own originals"
+drop policy if exists "storage delete team originals" on storage.objects;
+create policy "storage delete team originals"
   on storage.objects
   for delete
   to authenticated
-  using (
-    bucket_id = 'garage-originals'
-    and (storage.foldername(name))[1] = auth.uid()::text
-  );
+  using (bucket_id = 'garage-originals');
 
 comment on table public.capture_sets is
   '每次拍攝的一組案件，車輛品牌、車輛照與多個配件項目都連到這張主表。';

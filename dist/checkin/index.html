@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check-in | FODA工作流程</title>
+  <script src="../static/runtime-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" crossorigin src="../assets/checkin-MRfwsIfw.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/workbench-BWuwk5XA.js">
+  <link rel="stylesheet" crossorigin href="../assets/workbench-B_cUgdS8.css">
+</head>
+<body class="page-capture">
+  <header class="topbar">
+    <a class="back-link" href="../">← 返回首頁</a>
+    <a class="secondary-link" href="../capture/">前往安裝維修保養</a>
+  </header>
+
+  <main class="capture-shell">
+    <section class="capture-hero">
+      <p class="eyebrow">FODA Workflow</p>
+      <h1>Check-in</h1>
+    </section>
+
+    <form class="capture-stack" id="checkInForm">
+      <section class="capture-card">
+        <div class="section-head">
+          <div>
+            <h2>第一步：拍車輛照</h2>
+            <p>建立案件前先拍一張車輛縮圖，之後安裝維修保養頁會用這張圖選車。</p>
+          </div>
+        </div>
+
+        <label class="upload-zone large" id="vehicleZone" for="vehicleInput">
+          <input id="vehicleInput" type="file" accept="image/*" capture="environment">
+          <div class="upload-zone-content" id="vehiclePreview"></div>
+        </label>
+        <input class="utility-file-input" id="vehicleLibraryInput" type="file" accept="image/*">
+      </section>
+
+      <section class="capture-card">
+        <div class="section-head">
+          <div>
+            <h2>第二步：選擇車輛品牌</h2>
+            <p>品牌與車型會儲存成共用資料，之後所有用戶都可直接選取。</p>
+          </div>
+        </div>
+
+        <div class="choice-grid brand-grid" id="brandGrid"></div>
+        <p class="status-text" id="vehicleModelSummary" hidden></p>
+
+        <div class="lookup-creator">
+          <label for="customBrandInput">未有的車品牌</label>
+          <div class="lookup-creator-row">
+            <input id="customBrandInput" type="text" placeholder="例如：Mazda、BYD、Lotus">
+            <button class="secondary-button" id="addBrandBtn" type="button">加入品牌</button>
+          </div>
+          <p class="muted-copy">新品牌會寫入 database，之後所有帳號都可在品牌列表直接使用。</p>
+        </div>
+      </section>
+    </form>
+  </main>
+
+  <div class="camera-overlay" id="cameraOverlay" hidden>
+    <div class="camera-shell">
+      <div class="camera-head">
+        <strong id="cameraTitle">拍照</strong>
+        <button class="tiny-button" id="closeCameraBtn" type="button">關閉</button>
+      </div>
+      <div class="camera-stage">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="cameraCanvas" hidden></canvas>
+      </div>
+      <div class="camera-actions">
+        <button class="secondary-button" id="cancelCameraBtn" type="button">取消</button>
+        <button class="primary-button" id="shutterCameraBtn" type="button">拍照</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="model-overlay" id="modelOverlay" hidden>
+    <div class="model-shell">
+      <div class="model-head">
+        <div>
+          <strong>輸入車輛型號</strong>
+          <p class="muted-copy" id="modelOverlayBrand">-</p>
+        </div>
+        <button class="tiny-button" id="closeModelBtn" type="button">關閉</button>
+      </div>
+      <form class="model-form" id="modelForm">
+        <div class="field">
+          <label for="vehicleModelInput">車輛型號</label>
+          <input id="vehicleModelInput" type="text" placeholder="例如：Civic Type R">
+        </div>
+        <div class="model-recent-block">
+          <div class="section-head">
+            <div>
+              <h3>最近輸入過的型號</h3>
+            </div>
+          </div>
+          <div class="choice-grid recent-model-grid" id="recentModelList"></div>
+        </div>
+        <div class="model-actions">
+          <button class="secondary-button" id="cancelModelBtn" type="button">取消</button>
+          <button class="primary-button" type="submit">確定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="sticky-actionbar">
+    <div class="actionbar-row">
+      <a class="secondary-button" href="../capture/">前往安裝維修保養</a>
+      <button class="primary-button" id="saveCheckInBtn" type="submit" form="checkInForm">完成 Check-in</button>
+    </div>
+    <p class="status-text" id="checkInStatus">完成後會建立一組已 Check-in 案件，供後續安裝維修保養頁選車使用。</p>
+  </footer>
+</body>
+</html>
