@@ -3,8 +3,10 @@ import {
   createCaptureSet,
   describeSupabaseError,
   fetchBrands,
+  fetchRecentVehicleModels,
   fetchServiceItems,
   fileToDraftAsset,
+  rememberVehicleModel,
   revokeDraftAsset,
   todayLocal,
 } from "./workbench.js";
@@ -47,9 +49,9 @@ const state = {
   cameraTarget: null,
   cameraStream: null,
   pendingBrandId: "",
+  recentModelsByBrand: new Map(),
+  loadingRecentBrandId: "",
 };
-
-const RECENT_MODELS_KEY = "garage-photo-workbench.recent-models";
 
 function createAccessoryEntry() {
   return {
@@ -108,60 +110,52 @@ function getBrandById(brandId) {
   return state.brands.find((brand) => brand.id === brandId) || null;
 }
 
-function loadRecentModels() {
-  try {
-    const raw = window.localStorage.getItem(RECENT_MODELS_KEY);
-    const list = JSON.parse(raw || "[]");
-    if (!Array.isArray(list)) {
-      return [];
-    }
-    return list.filter((item) => item && typeof item.model === "string").slice(0, 20);
-  } catch (_error) {
-    return [];
-  }
-}
-
-function saveRecentModels(list) {
-  try {
-    window.localStorage.setItem(RECENT_MODELS_KEY, JSON.stringify(list.slice(0, 20)));
-  } catch (_error) {
-    // Ignore storage errors and continue without recent history.
-  }
-}
-
-function pushRecentModel(brandId, model) {
+function upsertRecentModelCache(brandId, model, lastUsedAt = new Date().toISOString()) {
   const normalized = normalizeModelName(model);
   if (!brandId || !normalized) {
-    return;
+    return [];
   }
 
-  const brand = getBrandById(brandId);
   const next = [
     {
       brandId,
-      brandName: brand?.name || brandId,
       model: normalized,
+      lastUsedAt,
     },
-    ...loadRecentModels().filter((item) => (
-      `${item.brandId}::${item.model}`.toLowerCase() !== `${brandId}::${normalized}`.toLowerCase()
-    )),
-  ];
-  saveRecentModels(next);
+    ...getRecentModelsForBrand(brandId).filter((item) => item.model.toLowerCase() !== normalized.toLowerCase()),
+  ].slice(0, 20);
+
+  state.recentModelsByBrand.set(brandId, next);
+  return next;
 }
 
 function getRecentModelsForBrand(brandId) {
-  const sameBrand = [];
-  const otherBrands = [];
+  return state.recentModelsByBrand.get(brandId) || [];
+}
 
-  loadRecentModels().forEach((item) => {
-    if (item.brandId === brandId) {
-      sameBrand.push(item);
-      return;
+async function loadRecentModelsForBrand(brandId, options = {}) {
+  if (!brandId) {
+    return [];
+  }
+
+  if (!options.force && state.recentModelsByBrand.has(brandId)) {
+    return getRecentModelsForBrand(brandId);
+  }
+
+  state.loadingRecentBrandId = brandId;
+  renderRecentModelList(brandId);
+  try {
+    const items = await fetchRecentVehicleModels(brandId, 20);
+    state.recentModelsByBrand.set(brandId, items);
+    return items;
+  } finally {
+    if (state.loadingRecentBrandId === brandId) {
+      state.loadingRecentBrandId = "";
     }
-    otherBrands.push(item);
-  });
-
-  return [...sameBrand, ...otherBrands].slice(0, 20);
+    if (!refs.modelOverlay.hidden && state.pendingBrandId === brandId) {
+      renderRecentModelList(brandId);
+    }
+  }
 }
 
 function isDirectCameraMode() {
@@ -287,12 +281,22 @@ function renderVehicleModelSummary() {
 }
 
 function renderRecentModelList(brandId) {
+  if (state.loadingRecentBrandId === brandId) {
+    refs.recentModelList.innerHTML = `
+      <div class="empty-state">
+        <strong>正在載入共用型號資料</strong>
+        <p class="muted-copy">稍候即可選擇這個品牌最近使用過的車型。</p>
+      </div>
+    `;
+    return;
+  }
+
   const items = getRecentModelsForBrand(brandId);
   if (!items.length) {
     refs.recentModelList.innerHTML = `
       <div class="empty-state">
-        <strong>暫時沒有最近型號</strong>
-        <p class="muted-copy">輸入一次後，之後會顯示在這裡。</p>
+        <strong>這個品牌暫時沒有共用型號紀錄</strong>
+        <p class="muted-copy">輸入一次後，其他設備和帳號也可在這裡直接選擇。</p>
       </div>
     `;
     return;
@@ -301,7 +305,7 @@ function renderRecentModelList(brandId) {
   refs.recentModelList.innerHTML = items.map((item) => `
     <button class="choice-button" type="button" data-recent-model="${item.model}">
       <strong>${item.model}</strong>
-      <span>${item.brandName || item.brandId || "-"}</span>
+      <span>此品牌最近輸入過</span>
     </button>
   `).join("");
 
@@ -314,7 +318,7 @@ function renderRecentModelList(brandId) {
   });
 }
 
-function openModelOverlay(brandId) {
+async function openModelOverlay(brandId) {
   state.pendingBrandId = brandId;
   const brand = getBrandById(brandId);
   refs.modelOverlayBrand.textContent = brand?.name || brandId;
@@ -322,6 +326,11 @@ function openModelOverlay(brandId) {
   renderRecentModelList(brandId);
   refs.modelOverlay.hidden = false;
   document.body.classList.add("model-open");
+  try {
+    await loadRecentModelsForBrand(brandId, { force: true });
+  } catch (error) {
+    setStatus(`未能讀取 ${brand?.name || brandId} 的共用型號資料。`, "danger");
+  }
   window.setTimeout(() => {
     refs.vehicleModelInput.focus();
     refs.vehicleModelInput.select();
@@ -335,7 +344,7 @@ function closeModelOverlay() {
   refs.vehicleModelInput.value = "";
 }
 
-function handleModelSubmit(event) {
+async function handleModelSubmit(event) {
   event.preventDefault();
   const model = normalizeModelName(refs.vehicleModelInput.value);
   if (!state.pendingBrandId) {
@@ -350,10 +359,19 @@ function handleModelSubmit(event) {
 
   state.brandId = state.pendingBrandId;
   state.vehicleModel = model;
-  pushRecentModel(state.brandId, state.vehicleModel);
+  upsertRecentModelCache(state.brandId, state.vehicleModel);
   renderBrands();
-  setStatus(`已選擇 ${getBrandById(state.brandId)?.name || state.brandId} · ${state.vehicleModel}`, "success");
   closeModelOverlay();
+
+  try {
+    const saved = await rememberVehicleModel(state.brandId, state.vehicleModel);
+    if (saved) {
+      upsertRecentModelCache(state.brandId, saved.model, saved.lastUsedAt);
+    }
+    setStatus(`已選擇 ${getBrandById(state.brandId)?.name || state.brandId} · ${state.vehicleModel}`, "success");
+  } catch (error) {
+    setStatus(`已選擇 ${getBrandById(state.brandId)?.name || state.brandId} · ${state.vehicleModel}，但未能同步共用型號資料。`, "danger");
+  }
 }
 
 function renderBrands() {
@@ -365,8 +383,8 @@ function renderBrands() {
   `).join("");
 
   refs.brandGrid.querySelectorAll("[data-brand-id]").forEach((button) => {
-    button.addEventListener("click", () => {
-      openModelOverlay(button.dataset.brandId);
+    button.addEventListener("click", async () => {
+      await openModelOverlay(button.dataset.brandId);
     });
   });
 

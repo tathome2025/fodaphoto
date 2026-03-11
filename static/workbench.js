@@ -237,6 +237,14 @@ function normalizeLookupRows(rows) {
   }));
 }
 
+function normalizeVehicleModelName(value) {
+  return (value || "").trim().replace(/\s+/g, " ");
+}
+
+function vehicleModelKey(value) {
+  return normalizeVehicleModelName(value).toLowerCase();
+}
+
 export async function fetchBrands() {
   const client = assertSupabaseConfigured();
   const { data, error } = await client
@@ -263,6 +271,93 @@ export async function fetchServiceItems() {
     throw error;
   }
   return normalizeLookupRows(data);
+}
+
+export async function fetchRecentVehicleModels(brandId, limit = 20) {
+  if (!brandId) {
+    return [];
+  }
+
+  const client = assertSupabaseConfigured();
+  try {
+    const { data, error } = await client
+      .from("brand_vehicle_models")
+      .select("brand_id, model_name, last_used_at")
+      .eq("brand_id", brandId)
+      .order("last_used_at", { ascending: false })
+      .order("model_name", { ascending: true })
+      .limit(limit);
+
+    if (error) {
+      if (isMissingRelationError(error, "brand_vehicle_models")) {
+        return [];
+      }
+      throw error;
+    }
+
+    return (data || []).map((item) => ({
+      brandId: item.brand_id,
+      model: item.model_name,
+      lastUsedAt: item.last_used_at,
+    }));
+  } catch (error) {
+    if (isMissingRelationError(error, "brand_vehicle_models")) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+export async function rememberVehicleModel(brandId, modelName) {
+  const client = assertSupabaseConfigured();
+  const normalized = normalizeVehicleModelName(modelName);
+  if (!brandId || !normalized) {
+    return null;
+  }
+
+  const now = new Date().toISOString();
+  try {
+    const { data, error } = await client
+      .from("brand_vehicle_models")
+      .upsert({
+        brand_id: brandId,
+        model_key: vehicleModelKey(normalized),
+        model_name: normalized,
+        last_used_at: now,
+        updated_at: now,
+      }, {
+        onConflict: "brand_id,model_key",
+        ignoreDuplicates: false,
+      })
+      .select("brand_id, model_name, last_used_at")
+      .single();
+
+    if (error) {
+      if (isMissingRelationError(error, "brand_vehicle_models")) {
+        return {
+          brandId,
+          model: normalized,
+          lastUsedAt: now,
+        };
+      }
+      throw error;
+    }
+
+    return {
+      brandId: data.brand_id,
+      model: data.model_name,
+      lastUsedAt: data.last_used_at,
+    };
+  } catch (error) {
+    if (isMissingRelationError(error, "brand_vehicle_models")) {
+      return {
+        brandId,
+        model: normalized,
+        lastUsedAt: now,
+      };
+    }
+    throw error;
+  }
 }
 
 export async function fetchFilters() {
