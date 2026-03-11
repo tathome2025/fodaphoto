@@ -976,7 +976,15 @@ button {
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     inset 0 -1px 0 rgba(0, 0, 0, 0.22),
     0 12px 24px rgba(0, 0, 0, 0.24);
+  text-shadow: none;
   transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
+}
+
+.vehicle-complete-btn span {
+  display: inline-block;
+  padding: 0.14rem 0.42rem;
+  background: rgba(245, 191, 24, 0.9);
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.18);
 }
 
 .vehicle-complete-btn:hover {
