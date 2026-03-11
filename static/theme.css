@@ -1532,11 +1532,14 @@ input[type="range"] {
   .field-grid,
   .brand-grid,
   .service-grid,
-  .vehicle-selector-grid,
   .preview-grid,
   .detail-meta-grid,
   .preset-grid {
     grid-template-columns: 1fr;
+  }
+
+  .vehicle-selector-grid {
+    grid-template-columns: repeat(3, 100px);
   }
 
   .photo-card,
