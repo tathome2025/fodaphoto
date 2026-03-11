@@ -14,6 +14,7 @@ import {
 const refs = {
   captureForm: document.querySelector("#captureForm"),
   checkInVehicleList: document.querySelector("#checkInVehicleList"),
+  vehicleCompleteRow: document.querySelector("#vehicleCompleteRow"),
   accessoryList: document.querySelector("#accessoryList"),
   customServiceInput: document.querySelector("#customServiceInput"),
   addServiceItemBtn: document.querySelector("#addServiceItemBtn"),
@@ -165,11 +166,13 @@ function renderCheckInVehicleList() {
         <p class="muted-copy">請先到 Check-in 頁建立車輛資料，然後再回來拍安裝維修保養相片。</p>
       </div>
     `;
+    refs.vehicleCompleteRow.innerHTML = "";
     return;
   }
 
   if (state.selectedCaptureSetId && hasDraftServiceData()) {
     refs.checkInVehicleList.innerHTML = "";
+    renderVehicleCompleteRow();
     return;
   }
 
@@ -195,9 +198,6 @@ function renderCheckInVehicleList() {
             <span>Check-in：${captureSet.createdByLabel || "未記錄"}</span>
           </div>
         </button>
-        <div class="vehicle-select-actions">
-          <button class="tiny-button" type="button" data-complete-capture-set="${captureSet.id}">已完成安裝維修保養</button>
-        </div>
       </article>
     `;
   }).join("");
@@ -216,35 +216,51 @@ function renderCheckInVehicleList() {
       renderCheckInVehicleList();
     });
   });
+  renderVehicleCompleteRow();
+}
 
-  refs.checkInVehicleList.querySelectorAll("[data-complete-capture-set]").forEach((button) => {
-    button.addEventListener("click", async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const captureSetId = button.dataset.completeCaptureSet;
-      if (!captureSetId) {
-        return;
-      }
-      if (captureSetId === state.selectedCaptureSetId && hasDraftServiceData()) {
-        setStatus("請先完成或清空目前項目，再標記這台車已完成。", "danger");
-        return;
-      }
+function renderVehicleCompleteRow() {
+  const selected = getSelectedCaptureSet();
+  if (!selected) {
+    refs.vehicleCompleteRow.innerHTML = "";
+    return;
+  }
 
+  refs.vehicleCompleteRow.innerHTML = `
+    <button class="secondary-button vehicle-complete-btn" type="button" id="completeSelectedVehicleBtn">
+      已完成安裝維修保養
+    </button>
+  `;
+
+  refs.vehicleCompleteRow.querySelector("#completeSelectedVehicleBtn")?.addEventListener("click", async () => {
+    const captureSetId = selected.id;
+    if (!captureSetId) {
+      return;
+    }
+    if (captureSetId === state.selectedCaptureSetId && hasDraftServiceData()) {
+      setStatus("請先完成或清空目前項目，再標記這台車已完成。", "danger");
+      return;
+    }
+
+    const button = refs.vehicleCompleteRow.querySelector("#completeSelectedVehicleBtn");
+    if (button) {
       button.disabled = true;
-      try {
-        const result = await markCaptureSetServiceCompleted(captureSetId);
-        if (captureSetId === state.selectedCaptureSetId) {
-          state.selectedCaptureSetId = "";
-          resetAccessoryEntries();
-        }
-        await loadCheckInSets();
-        setStatus(`案件 ${result.reference || captureSetId} 已標記為完成，不會再於安裝維修保養頁顯示。`, "success");
-      } catch (error) {
-        setStatus(describeSupabaseError(error), "danger");
-      } finally {
+    }
+    try {
+      const result = await markCaptureSetServiceCompleted(captureSetId);
+      if (captureSetId === state.selectedCaptureSetId) {
+        state.selectedCaptureSetId = "";
+        resetAccessoryEntries();
+      }
+      await loadCheckInSets();
+      setStatus(`案件 ${result.reference || captureSetId} 已標記為完成，不會再於安裝維修保養頁顯示。`, "success");
+    } catch (error) {
+      setStatus(describeSupabaseError(error), "danger");
+    } finally {
+      if (button) {
         button.disabled = false;
       }
-    });
+    }
   });
 }
 

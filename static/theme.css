@@ -947,6 +947,15 @@ button {
   font-size: 0.68rem;
 }
 
+.vehicle-complete-row {
+  display: grid;
+  margin-top: 0.85rem;
+}
+
+.vehicle-complete-btn {
+  width: 100%;
+}
+
 .selected-vehicle-summary {
   display: grid;
 }
