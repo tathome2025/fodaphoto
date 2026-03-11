@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Check-in | FODA工作流程</title>
+  <title>Check-in | FODA工場流程</title>
   <link rel="stylesheet" href="../static/theme.css">
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -12,7 +12,10 @@
 <body class="page-capture">
   <header class="topbar">
     <a class="back-link" href="../">← 返回首頁</a>
-    <a class="secondary-link" href="../capture/">前往安裝維修保養</a>
+    <div class="topbar-links">
+      <a class="secondary-link" href="../capture/">前往安裝維修保養</a>
+      <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
+    </div>
   </header>
 
   <main class="capture-shell">

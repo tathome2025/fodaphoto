@@ -37,6 +37,7 @@ const refs = {
   recentModelList: document.querySelector("#recentModelList"),
   closeModelBtn: document.querySelector("#closeModelBtn"),
   cancelModelBtn: document.querySelector("#cancelModelBtn"),
+  currentUserEmail: document.querySelector("#currentUserEmail"),
 };
 
 const state = {
@@ -69,6 +70,12 @@ function setStatus(message, type) {
   refs.checkInStatus.className = "status-text";
   if (type) {
     refs.checkInStatus.classList.add(`is-${type}`);
+  }
+}
+
+function syncCurrentUser(user) {
+  if (refs.currentUserEmail) {
+    refs.currentUserEmail.textContent = user?.email || user?.phone || user?.id || "-";
   }
 }
 
@@ -584,7 +591,8 @@ function bindEvents() {
 }
 
 async function init() {
-  await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthenticatedPage("../index.html");
+  syncCurrentUser(user);
   renderVehiclePreview();
   setStatus("正在載入品牌資料...", "");
 

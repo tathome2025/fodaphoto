@@ -27,6 +27,7 @@ const refs = {
   closeCameraBtn: document.querySelector("#closeCameraBtn"),
   cancelCameraBtn: document.querySelector("#cancelCameraBtn"),
   shutterCameraBtn: document.querySelector("#shutterCameraBtn"),
+  currentUserEmail: document.querySelector("#currentUserEmail"),
 };
 
 const state = {
@@ -67,6 +68,12 @@ function setStatus(message, type) {
   refs.captureStatus.className = "status-text";
   if (type) {
     refs.captureStatus.classList.add(`is-${type}`);
+  }
+}
+
+function syncCurrentUser(user) {
+  if (refs.currentUserEmail) {
+    refs.currentUserEmail.textContent = user?.email || user?.phone || user?.id || "-";
   }
 }
 
@@ -374,11 +381,6 @@ function renderAccessoryList() {
 
       <div class="choice-grid service-grid">${renderServiceButtons(entry)}</div>
       <p class="accessory-subcopy">${formatAccessorySelection(entry)}</p>
-
-      <div class="field-wide">
-        <label for="notes-${entry.id}">項目備註</label>
-        <textarea id="notes-${entry.id}" placeholder="例如：更換前避震、四輪定位、保養機油及油隔。">${entry.notes || ""}</textarea>
-      </div>
     </article>
   `).join("");
 
@@ -477,15 +479,6 @@ function renderAccessoryList() {
         setStatus(describeSupabaseError(error), "danger");
       } finally {
         input.value = "";
-      }
-    });
-  });
-
-  refs.accessoryList.querySelectorAll("textarea").forEach((textarea) => {
-    textarea.addEventListener("input", () => {
-      const entry = state.accessoryEntries.find((record) => record.id === textarea.id.replace("notes-", ""));
-      if (entry) {
-        entry.notes = textarea.value;
       }
     });
   });
@@ -720,7 +713,8 @@ function bindEvents() {
 }
 
 async function init() {
-  await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthenticatedPage("../index.html");
+  syncCurrentUser(user);
   state.accessoryEntries = [createAccessoryEntry()];
   renderAccessoryList();
   setStatus("正在載入已 Check-in 車輛與服務項目...", "");

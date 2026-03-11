@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>安裝維修保養 | FODA工作流程</title>
+  <title>安裝維修保養 | FODA工場流程</title>
   <link rel="stylesheet" href="../static/theme.css">
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -14,7 +14,7 @@
     <a class="back-link" href="../">← 返回首頁</a>
     <div class="topbar-links">
       <a class="secondary-link" href="../checkin/">前往 Check-in</a>
-      <a class="secondary-link" href="../records/">查看紀錄</a>
+      <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
     </div>
   </header>
 
@@ -31,10 +31,7 @@
             <h2>第一步：選擇已 Check-in 車輛</h2>
             <p>先於 Check-in 建立車輛案件，這裡會顯示最近已 Check-in 的車輛縮圖供用戶分工處理。</p>
           </div>
-          <div class="topbar-links">
-            <a class="secondary-link" href="../checkin/">建立新 Check-in</a>
-            <a class="secondary-link" href="../records/">查看紀錄</a>
-          </div>
+          <a class="secondary-link" href="../checkin/">建立新 Check-in</a>
         </div>
 
         <div class="vehicle-selector-grid" id="checkInVehicleList"></div>
@@ -85,7 +82,6 @@
       <button class="secondary-button" id="addAccessoryBtn" type="button">加入更多項目</button>
       <button class="primary-button" id="saveSetBtn" type="submit" form="captureForm">完成</button>
     </div>
-    <a class="ghost-button actionbar-subaction" href="../records/">查看紀錄</a>
     <p class="status-text" id="captureStatus">請先選擇已 Check-in 車輛，再為該車加入安裝、維修或保養資料。</p>
   </footer>
 </body>

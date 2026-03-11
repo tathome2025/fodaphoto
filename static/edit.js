@@ -31,6 +31,7 @@ const state = {
 };
 
 const refs = {
+  currentUserEmail: document.querySelector("#currentUserEmail"),
   monthLabel: document.querySelector("#monthLabel"),
   calendarGrid: document.querySelector("#calendarGrid"),
   selectedDateTitle: document.querySelector("#selectedDateTitle"),
@@ -44,6 +45,12 @@ const refs = {
   prevMonthBtn: document.querySelector("#prevMonthBtn"),
   nextMonthBtn: document.querySelector("#nextMonthBtn"),
 };
+
+function syncCurrentUser(user) {
+  if (refs.currentUserEmail) {
+    refs.currentUserEmail.textContent = user?.email || user?.phone || user?.id || "-";
+  }
+}
 
 function setStatus(message, type) {
   refs.editStatus.textContent = message;
@@ -339,7 +346,8 @@ function bindEvents() {
 }
 
 async function init() {
-  await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthenticatedPage("../index.html");
+  syncCurrentUser(user);
 
   const seedDate = state.selectedDate ? new Date(`${state.selectedDate}T00:00:00`) : new Date();
   if (!state.selectedDate) {

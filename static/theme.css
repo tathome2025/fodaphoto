@@ -35,7 +35,7 @@ body {
 }
 
 html {
-  scroll-padding-bottom: 14rem;
+  scroll-padding-bottom: 18rem;
 }
 
 body {
@@ -292,6 +292,23 @@ button {
   align-items: center;
 }
 
+.account-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0 0.8rem;
+  border: 1px solid var(--line);
+  color: var(--muted-strong);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 0.84rem;
+}
+
+.account-pill strong {
+  margin-left: 0.35rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
 .topbar,
 .workspace-topbar {
   width: min(1320px, calc(100vw - 2rem));
@@ -315,7 +332,7 @@ button {
 .capture-shell {
   width: min(760px, calc(100vw - 1rem));
   margin: 0 auto;
-  padding: 0 0 11.5rem;
+  padding: 0 0 16rem;
 }
 
 .capture-hero {
@@ -422,6 +439,7 @@ button {
   padding: 1rem;
   border: 1px dashed rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.025);
+  margin-bottom: 2rem;
 }
 
 .lookup-creator label {
@@ -838,7 +856,7 @@ button {
 
 .vehicle-selector-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 200px));
+  grid-template-columns: repeat(auto-fill, minmax(100px, 100px));
   gap: 0.9rem;
   justify-content: start;
 }
@@ -855,7 +873,7 @@ button {
   padding: 0;
   text-align: left;
   width: 100%;
-  max-width: 200px;
+  max-width: 100px;
 }
 
 .vehicle-select-card.is-selected {
@@ -868,11 +886,8 @@ button {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   background: rgba(7, 9, 11, 0.78);
-}
-
-.vehicle-select-thumb {
-  max-width: 200px;
-  max-height: 200px;
+  max-width: 100px;
+  max-height: 100px;
 }
 
 .vehicle-select-thumb img,
@@ -896,18 +911,18 @@ button {
 .selected-vehicle-body {
   display: grid;
   gap: 0.45rem;
-  padding: 0.9rem;
+  padding: 0.7rem;
 }
 
 .vehicle-select-body strong,
 .selected-vehicle-body h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.88rem;
 }
 
 .vehicle-select-body span {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.74rem;
 }
 
 .selected-vehicle-summary {
@@ -916,7 +931,7 @@ button {
 
 .selected-vehicle-card {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-columns: 100px minmax(0, 1fr);
 }
 
 .records-shell {

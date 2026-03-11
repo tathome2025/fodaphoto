@@ -19,6 +19,7 @@ const state = {
 };
 
 const refs = {
+  currentUserEmail: document.querySelector("#currentUserEmail"),
   monthLabel: document.querySelector("#monthLabel"),
   calendarGrid: document.querySelector("#calendarGrid"),
   selectedDateTitle: document.querySelector("#selectedDateTitle"),
@@ -29,6 +30,12 @@ const refs = {
   prevMonthBtn: document.querySelector("#prevMonthBtn"),
   nextMonthBtn: document.querySelector("#nextMonthBtn"),
 };
+
+function syncCurrentUser(user) {
+  if (refs.currentUserEmail) {
+    refs.currentUserEmail.textContent = user?.email || user?.phone || user?.id || "-";
+  }
+}
 
 function setStatus(message, type) {
   refs.recordsStatus.textContent = message;
@@ -232,7 +239,8 @@ function bindEvents() {
 }
 
 async function init() {
-  await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthenticatedPage("../index.html");
+  syncCurrentUser(user);
   const [year, month] = state.selectedDate.split("-").map(Number);
   state.currentMonth = new Date(year, month - 1, 1);
   setStatus("正在載入處理紀錄...", "");

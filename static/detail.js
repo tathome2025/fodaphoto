@@ -17,6 +17,7 @@ const photoId = new URLSearchParams(window.location.search).get("photo");
 
 const refs = {
   backLink: document.querySelector("#backLink"),
+  currentUserEmail: document.querySelector("#currentUserEmail"),
   detailCanvas: document.querySelector("#detailCanvas"),
   photoTitle: document.querySelector("#photoTitle"),
   photoSummary: document.querySelector("#photoSummary"),
@@ -41,6 +42,12 @@ const refs = {
   setMeta: document.querySelector("#setMeta"),
   folderMeta: document.querySelector("#folderMeta"),
 };
+
+function syncCurrentUser(user) {
+  if (refs.currentUserEmail) {
+    refs.currentUserEmail.textContent = user?.email || user?.phone || user?.id || "-";
+  }
+}
 
 const state = {
   detail: null,
@@ -233,7 +240,8 @@ async function init() {
     return;
   }
 
-  await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthenticatedPage("../index.html");
+  syncCurrentUser(user);
   setStatus("讀取相片資料中...", "");
 
   try {

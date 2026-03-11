@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>進階調色 | FODA工作流程</title>
+  <title>進階調色 | FODA工場流程</title>
   <link rel="stylesheet" href="../static/theme.css">
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -64,7 +64,10 @@
     <section class="editor-preview-shell">
       <div class="editor-topbar">
         <a class="back-link" id="backLink" href="./">← 返回列表</a>
-        <p class="status-text" id="detailStatus">拖動右邊參數，並把成功的設定另存成 filter。</p>
+        <div class="topbar-links">
+          <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
+          <p class="status-text" id="detailStatus">拖動右邊參數，並把成功的設定另存成 filter。</p>
+        </div>
       </div>
       <div class="detail-image-frame">
         <canvas id="detailCanvas"></canvas>

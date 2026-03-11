@@ -17,6 +17,8 @@ const refs = {
   authStatus: document.querySelector("#authStatus"),
   userPanel: document.querySelector("#userPanel"),
   userEmail: document.querySelector("#userEmail"),
+  topUserBanner: document.querySelector("#topUserBanner"),
+  topUserEmail: document.querySelector("#topUserEmail"),
 };
 
 function withTimeout(promise, ms, message) {
@@ -49,6 +51,12 @@ function syncUserUI(user) {
   refs.loginForm.hidden = hasUser;
   refs.userPanel.hidden = !hasUser;
   refs.userEmail.textContent = getUserLabel(user);
+  if (refs.topUserBanner) {
+    refs.topUserBanner.hidden = !hasUser;
+  }
+  if (refs.topUserEmail) {
+    refs.topUserEmail.textContent = getUserLabel(user);
+  }
 }
 
 let preserveStatusOnce = false;
