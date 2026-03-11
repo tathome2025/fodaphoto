@@ -227,8 +227,8 @@ function renderVehicleCompleteRow() {
   }
 
   refs.vehicleCompleteRow.innerHTML = `
-    <button class="secondary-button vehicle-complete-btn" type="button" id="completeSelectedVehicleBtn">
-      已完成安裝維修保養
+    <button class="vehicle-complete-btn" type="button" id="completeSelectedVehicleBtn">
+      已完成所有安裝維修保養
     </button>
   `;
 
