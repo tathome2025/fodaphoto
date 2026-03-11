@@ -35,7 +35,7 @@ body {
 }
 
 html {
-  scroll-padding-bottom: 18rem;
+  scroll-padding-bottom: 4rem;
 }
 
 body {
@@ -332,7 +332,7 @@ button {
 .capture-shell {
   width: min(760px, calc(100vw - 1rem));
   margin: 0 auto;
-  padding: 0 0 16rem;
+  padding: 0 0 2.5rem;
 }
 
 .capture-hero {
@@ -439,7 +439,7 @@ button {
   padding: 1rem;
   border: 1px dashed rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.025);
-  margin-bottom: 2rem;
+  margin-bottom: 0.5rem;
 }
 
 .lookup-creator label {
@@ -783,12 +783,10 @@ button {
 }
 
 .sticky-actionbar {
-  position: fixed;
-  left: 50%;
-  bottom: 1rem;
-  z-index: 15;
+  position: static;
+  z-index: 1;
   width: min(760px, calc(100vw - 1rem));
-  transform: translateX(-50%);
+  margin: 0 auto 1.5rem;
   display: grid;
   gap: 0.75rem;
   padding: 0.9rem;
@@ -886,6 +884,8 @@ button {
   aspect-ratio: 1 / 1;
   overflow: hidden;
   background: rgba(7, 9, 11, 0.78);
+  width: 100px;
+  height: 100px;
   max-width: 100px;
   max-height: 100px;
 }
@@ -911,18 +911,20 @@ button {
 .selected-vehicle-body {
   display: grid;
   gap: 0.45rem;
-  padding: 0.7rem;
+  padding: 0.55rem;
 }
 
 .vehicle-select-body strong,
 .selected-vehicle-body h3 {
   margin: 0;
   font-size: 0.88rem;
+  line-height: 1.2;
 }
 
 .vehicle-select-body span {
   color: var(--muted);
   font-size: 0.74rem;
+  line-height: 1.25;
 }
 
 .selected-vehicle-summary {

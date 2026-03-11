@@ -13,7 +13,6 @@ import {
 const refs = {
   captureForm: document.querySelector("#captureForm"),
   checkInVehicleList: document.querySelector("#checkInVehicleList"),
-  selectedVehicleSummary: document.querySelector("#selectedVehicleSummary"),
   accessoryList: document.querySelector("#accessoryList"),
   customServiceInput: document.querySelector("#customServiceInput"),
   addServiceItemBtn: document.querySelector("#addServiceItemBtn"),
@@ -44,7 +43,6 @@ function createAccessoryEntry() {
   return {
     id: `entry-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
     itemIds: [],
-    notes: "",
     photos: [],
   };
 }
@@ -142,7 +140,6 @@ function hasDraftServiceData() {
   return state.accessoryEntries.some((entry) =>
     entry.itemIds.length > 0
     || entry.photos.length > 0
-    || normalizeText(entry.notes)
   );
 }
 
@@ -159,57 +156,6 @@ function resetAccessoryEntries() {
   renderCheckInVehicleList();
 }
 
-function renderSelectedVehicleSummary() {
-  const selected = getSelectedCaptureSet();
-  if (!selected) {
-    refs.selectedVehicleSummary.innerHTML = `
-      <div class="empty-state compact">
-        <strong>請先選擇已 Check-in 車輛</strong>
-        <p class="muted-copy">上方會顯示最近已建立的車輛案件。</p>
-      </div>
-    `;
-    return;
-  }
-
-  const vehiclePhoto = selected.vehiclePhotos[0];
-  const thumbUrl = state.vehicleThumbUrls.get(selected.id);
-  refs.selectedVehicleSummary.innerHTML = `
-    <article class="selected-vehicle-card">
-      <div class="selected-vehicle-thumb">
-        ${thumbUrl
-          ? `<img src="${thumbUrl}" alt="${selected.brandName}${selected.vehicleModel ? ` ${selected.vehicleModel}` : ""}">`
-          : vehiclePhoto
-            ? `<div class="vehicle-thumb-placeholder">載入縮圖中</div>`
-            : `<div class="vehicle-thumb-placeholder">未有車輛相片</div>`}
-      </div>
-      <div class="selected-vehicle-body">
-        <p class="eyebrow">Selected Vehicle</p>
-        <h3>${selected.brandName}${selected.vehicleModel ? ` ${selected.vehicleModel}` : ""}</h3>
-        <div class="chip-row">
-          <span class="meta-chip">${selected.reference}</span>
-          <span class="meta-chip">${selected.captureDate}</span>
-          <span class="meta-chip">已入 ${selected.accessoryEntries.length} 項服務</span>
-          <span class="meta-chip">Check-in：${selected.createdByLabel || "未記錄"}</span>
-        </div>
-        <p class="muted-copy">${selected.notes || "此車輛已完成 Check-in，可在下方新增安裝、維修或保養紀錄。"}</p>
-        <div class="toolbar-row">
-          <button class="ghost-button" type="button" id="changeVehicleBtn">重新選擇車輛</button>
-        </div>
-      </div>
-    </article>
-  `;
-
-  refs.selectedVehicleSummary.querySelector("#changeVehicleBtn")?.addEventListener("click", () => {
-    if (hasDraftServiceData()) {
-      resetAccessoryEntries();
-      setStatus("已清空目前服務草稿，請重新選擇車輛。", "danger");
-    }
-    state.selectedCaptureSetId = "";
-    renderCheckInVehicleList();
-    renderSelectedVehicleSummary();
-  });
-}
-
 function renderCheckInVehicleList() {
   if (!state.checkInSets.length) {
     refs.checkInVehicleList.innerHTML = `
@@ -218,18 +164,11 @@ function renderCheckInVehicleList() {
         <p class="muted-copy">請先到 Check-in 頁建立車輛資料，然後再回來拍安裝維修保養相片。</p>
       </div>
     `;
-    renderSelectedVehicleSummary();
     return;
   }
 
   if (state.selectedCaptureSetId && hasDraftServiceData()) {
-    refs.checkInVehicleList.innerHTML = `
-      <div class="empty-state compact">
-        <strong>已鎖定目前車輛</strong>
-        <p class="muted-copy">你已開始輸入安裝維修保養項目，縮圖列表已先隱藏避免誤按。需要更換車輛可按下方「重新選擇車輛」。</p>
-      </div>
-    `;
-    renderSelectedVehicleSummary();
+    refs.checkInVehicleList.innerHTML = "";
     return;
   }
 
@@ -251,8 +190,7 @@ function renderCheckInVehicleList() {
         </div>
         <div class="vehicle-select-body">
           <strong>${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}</strong>
-          <span>${captureSet.reference}</span>
-          <span>${captureSet.captureDate} · ${captureSet.accessoryEntries.length} 項服務</span>
+          <span>Check-in：${captureSet.createdByLabel || "未記錄"}</span>
         </div>
       </button>
     `;
@@ -270,11 +208,8 @@ function renderCheckInVehicleList() {
       }
       state.selectedCaptureSetId = nextId;
       renderCheckInVehicleList();
-      renderSelectedVehicleSummary();
     });
   });
-
-  renderSelectedVehicleSummary();
 }
 
 async function hydrateVehicleThumbs() {
@@ -625,7 +560,7 @@ function validateBeforeSave() {
 function collectPayload() {
   return state.accessoryEntries.map((entry) => ({
     itemIds: [...entry.itemIds],
-    notes: entry.notes || "",
+    notes: "",
     photos: entry.photos,
   }));
 }
