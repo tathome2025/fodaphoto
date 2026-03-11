@@ -103,9 +103,17 @@ export function sanitizeFileName(value) {
   return (value || "").replace(/[\\/:*?"<>|]/g, "-").trim() || "untitled";
 }
 
+function joinItemNames(itemNames) {
+  return (itemNames || []).filter(Boolean).join("+");
+}
+
 export function buildFolderName(captureSet) {
   const suffix = [...new Set((captureSet.accessoryEntries || [])
-    .map((entry) => entry.itemName || entry.itemId || "未分類")
+    .flatMap((entry) => (
+      entry.itemNames?.length
+        ? entry.itemNames
+        : [entry.itemName || entry.itemId || "未分類"]
+    ))
     .filter(Boolean))]
     .join("+") || "未分類配件";
   return `${captureSet.brandName || captureSet.brandId || "Unknown"}_${suffix}_${captureSet.captureDate}`;
@@ -325,17 +333,80 @@ async function fetchCurrentEditsByPhotoIds(photoIds) {
   return new Map((data || []).map((edit) => [edit.photo_id, edit]));
 }
 
-function groupPhotos(captureSet, photos, currentEdits) {
+function isMissingRelationError(error, relationName) {
+  const message = `${error?.message || ""} ${error?.details || ""}`.toLowerCase();
+  return message.includes(relationName.toLowerCase()) && message.includes("does not exist");
+}
+
+async function fetchPhotoServiceItemsMap(photoIds) {
+  if (!photoIds.length) {
+    return new Map();
+  }
+
+  const client = assertSupabaseConfigured();
+
+  try {
+    const { data, error } = await client
+      .from("photo_service_items")
+      .select("photo_id, service_item_id, sort_order")
+      .in("photo_id", photoIds)
+      .order("photo_id", { ascending: true })
+      .order("sort_order", { ascending: true });
+
+    if (error) {
+      if (isMissingRelationError(error, "photo_service_items")) {
+        return new Map();
+      }
+      throw error;
+    }
+
+    return (data || []).reduce((map, row) => {
+      const list = map.get(row.photo_id) || [];
+      list.push(row);
+      map.set(row.photo_id, list);
+      return map;
+    }, new Map());
+  } catch (error) {
+    if (isMissingRelationError(error, "photo_service_items")) {
+      return new Map();
+    }
+    throw error;
+  }
+}
+
+function normalizeServiceItemsForPhoto(photo, captureSet, photoServiceItemMap) {
+  const linkedRows = photoServiceItemMap.get(photo.id) || [];
+  const itemIds = [...new Set([
+    ...linkedRows.map((row) => row.service_item_id),
+    photo.service_item_id,
+  ].filter(Boolean))];
+  const itemNames = itemIds.map((itemId) => captureSet.serviceItemLookup.get(itemId)?.name || itemId);
+
+  return {
+    itemIds,
+    itemNames,
+    itemLabel: joinItemNames(itemNames),
+    primaryItemId: itemIds[0] || photo.service_item_id || "",
+  };
+}
+
+function groupPhotos(captureSet, photos, currentEdits, photoServiceItemMap) {
   const vehiclePhotos = [];
-  const accessoryMap = new Map();
+  const accessoryEntries = [];
 
   photos.forEach((photo) => {
     const edit = currentEdits.get(photo.id);
+    const serviceItems = normalizeServiceItemsForPhoto(photo, captureSet, photoServiceItemMap);
     const normalized = {
       id: photo.id,
       kind: photo.kind,
-      serviceItemId: photo.service_item_id,
-      itemId: photo.service_item_id,
+      serviceItemId: serviceItems.primaryItemId,
+      serviceItemIds: serviceItems.itemIds,
+      itemId: serviceItems.primaryItemId,
+      itemIds: serviceItems.itemIds,
+      itemName: serviceItems.itemNames[0] || serviceItems.primaryItemId || "",
+      itemNames: serviceItems.itemNames,
+      itemLabel: serviceItems.itemLabel,
       itemNote: photo.item_note || "",
       storagePath: photo.storage_path,
       fileName: photo.original_file_name,
@@ -353,22 +424,22 @@ function groupPhotos(captureSet, photos, currentEdits) {
       return;
     }
 
-    const key = normalized.serviceItemId || "unknown";
-    const existing = accessoryMap.get(key) || {
-      id: `${captureSet.id}:${key}`,
-      itemId: key,
-      itemName: captureSet.serviceItemLookup.get(key)?.name || key,
+    accessoryEntries.push({
+      id: `${captureSet.id}:${photo.id}`,
+      itemId: normalized.itemId,
+      itemIds: normalized.itemIds,
+      itemName: normalized.itemName,
+      itemNames: normalized.itemNames,
+      itemLabel: normalized.itemLabel,
       notes: normalized.itemNote,
-      photos: [],
-    };
-    existing.photos.push(normalized);
-    accessoryMap.set(key, existing);
+      photos: [normalized],
+    });
   });
 
   return {
     ...captureSet,
     vehiclePhotos,
-    accessoryEntries: [...accessoryMap.values()],
+    accessoryEntries,
   };
 }
 
@@ -377,13 +448,15 @@ export function flattenPhotosForSet(captureSet) {
     photo,
     kindLabel: "車輛照",
     itemName: null,
+    itemNames: [],
   }));
 
   const accessoryPhotos = (captureSet.accessoryEntries || []).flatMap((entry) =>
     (entry.photos || []).map((photo) => ({
       photo,
       kindLabel: "配件 / 維修",
-      itemName: entry.itemName || entry.itemId,
+      itemName: photo.itemLabel || entry.itemLabel || joinItemNames(entry.itemNames) || entry.itemName || entry.itemId,
+      itemNames: photo.itemNames || entry.itemNames || [],
     }))
   );
 
@@ -430,6 +503,7 @@ export async function fetchCaptureSetsByDate(date) {
 
   const photoIds = (photos || []).map((photo) => photo.id);
   const currentEdits = await fetchCurrentEditsByPhotoIds(photoIds);
+  const photoServiceItemMap = await fetchPhotoServiceItemsMap(photoIds);
 
   return sets.map((captureSet) => {
     const base = {
@@ -445,7 +519,7 @@ export async function fetchCaptureSetsByDate(date) {
     };
 
     const setPhotos = (photos || []).filter((photo) => photo.capture_set_id === captureSet.id);
-    return groupPhotos(base, setPhotos, currentEdits);
+    return groupPhotos(base, setPhotos, currentEdits, photoServiceItemMap);
   });
 }
 
@@ -537,6 +611,7 @@ export async function createCaptureSet(payload) {
   }
 
   const photoRows = [];
+  const photoServiceItemRows = [];
 
   for (const [index, asset] of payload.vehiclePhotos.entries()) {
     const upload = await uploadPhotoAsset(user.id, captureDate, captureSetId, asset);
@@ -559,11 +634,12 @@ export async function createCaptureSet(payload) {
   for (const entry of payload.accessoryEntries) {
     for (const asset of entry.photos) {
       const upload = await uploadPhotoAsset(user.id, captureDate, captureSetId, asset);
+      const selectedItemIds = [...new Set((entry.itemIds || []).filter(Boolean))];
       photoRows.push({
         id: upload.id,
         capture_set_id: captureSetId,
         kind: "accessory",
-        service_item_id: entry.itemId,
+        service_item_id: selectedItemIds[0] || null,
         item_note: entry.notes || "",
         storage_path: upload.storagePath,
         original_file_name: asset.fileName,
@@ -572,6 +648,14 @@ export async function createCaptureSet(payload) {
         height: asset.height,
         sort_order: accessorySortOrder,
       });
+
+      selectedItemIds.forEach((itemId, index) => {
+        photoServiceItemRows.push({
+          photo_id: upload.id,
+          service_item_id: itemId,
+          sort_order: index * 10 + 10,
+        });
+      });
       accessorySortOrder += 10;
     }
   }
@@ -579,6 +663,13 @@ export async function createCaptureSet(payload) {
   const { error: photoInsertError } = await client.from("photos").insert(photoRows);
   if (photoInsertError) {
     throw photoInsertError;
+  }
+
+  if (photoServiceItemRows.length) {
+    const { error: linkInsertError } = await client.from("photo_service_items").insert(photoServiceItemRows);
+    if (linkInsertError) {
+      throw linkInsertError;
+    }
   }
 
   return {
@@ -615,7 +706,7 @@ export async function fetchPhotoDetail(photoId) {
 
   const { data: setPhotos, error: setPhotosError } = await client
     .from("photos")
-    .select("service_item_id, kind")
+    .select("id, service_item_id, kind")
     .eq("capture_set_id", captureSet.id)
     .eq("kind", "accessory");
 
@@ -624,7 +715,20 @@ export async function fetchPhotoDetail(photoId) {
   }
 
   const currentEdits = await fetchCurrentEditsByPhotoIds([photo.id]);
+  const setPhotoIds = (setPhotos || []).map((item) => item.id);
+  const photoServiceItemMap = await fetchPhotoServiceItemsMap([
+    ...new Set([photo.id, ...setPhotoIds]),
+  ]);
   const edit = currentEdits.get(photo.id);
+  const detailServiceItems = normalizeServiceItemsForPhoto(photo, { serviceItemLookup: lookups.serviceItemLookup }, photoServiceItemMap);
+
+  const captureSetAccessoryIds = [...new Set((setPhotos || []).flatMap((setPhoto) => {
+    const linked = photoServiceItemMap.get(setPhoto.id) || [];
+    return [
+      ...linked.map((row) => row.service_item_id),
+      setPhoto.service_item_id,
+    ].filter(Boolean);
+  }))];
 
   return {
     captureSet: {
@@ -636,16 +740,20 @@ export async function fetchPhotoDetail(photoId) {
       vehicleModel: captureSet.vehicle_model || "",
       brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
       createdAt: captureSet.created_at,
-      accessoryEntries: [...new Set((setPhotos || []).map((item) => item.service_item_id).filter(Boolean))].map((itemId) => ({
+      accessoryEntries: captureSetAccessoryIds.map((itemId) => ({
         itemId,
         itemName: lookups.serviceItemLookup.get(itemId)?.name || itemId,
+        itemNames: [lookups.serviceItemLookup.get(itemId)?.name || itemId],
       })),
     },
     photo: {
       id: photo.id,
       kind: photo.kind,
-      itemId: photo.service_item_id,
-      itemName: lookups.serviceItemLookup.get(photo.service_item_id)?.name || photo.service_item_id,
+      itemId: detailServiceItems.primaryItemId,
+      itemIds: detailServiceItems.itemIds,
+      itemName: detailServiceItems.itemNames[0] || detailServiceItems.primaryItemId,
+      itemNames: detailServiceItems.itemNames,
+      itemLabel: detailServiceItems.itemLabel,
       itemNote: photo.item_note || "",
       storagePath: photo.storage_path,
       fileName: photo.original_file_name,

@@ -189,15 +189,18 @@ async function renderCurrentDate() {
 
   refs.setList.innerHTML = state.captureSets.map((captureSet) => {
     const folderName = buildFolderName(captureSet);
-    const cards = flattenPhotosForSet(captureSet).map(({ photo, kindLabel, itemName }) => {
+    const cards = flattenPhotosForSet(captureSet).map(({ photo, kindLabel, itemName, itemNames }) => {
       const filterName = state.filters.find((filter) => filter.id === photo.savedFilterId)?.name || (photo.savedFilterId ? "已套用 filter" : "未套用 filter");
+      const itemChips = (itemNames || [])
+        .map((name) => `<span class="meta-chip">${name}</span>`)
+        .join("");
       return `
         <article class="photo-card" data-photo-id="${photo.id}">
           <img alt="${photo.fileName}">
           <div class="photo-body">
             <div class="chip-row">
               <span class="meta-chip">${kindLabel}</span>
-              ${itemName ? `<span class="meta-chip">${itemName}</span>` : ""}
+              ${itemChips || (itemName ? `<span class="meta-chip">${itemName}</span>` : "")}
               <span class="meta-chip">${filterName}</span>
             </div>
             <strong>${photo.fileName}</strong>
@@ -280,16 +283,17 @@ async function downloadDayArchive() {
       const folder = zip.folder(sanitizeFileName(buildFolderName(captureSet)));
       let index = 1;
 
-      for (const { photo, itemName } of flattenPhotosForSet(captureSet)) {
+      for (const { photo, itemName, itemNames } of flattenPhotosForSet(captureSet)) {
         const sourceUrl = await getSignedPhotoUrl(photo.storagePath);
         const blob = await renderAdjustedBlob(sourceUrl, photo.adjustments, {
           mimeType: photo.mimeType === "image/png" ? "image/png" : "image/jpeg",
           quality: 0.92,
         });
         const extension = photo.mimeType === "image/png" ? "png" : "jpg";
+        const itemLabel = (itemNames || []).join("+") || itemName || photo.itemId;
         const fileName = photo.kind === "vehicle"
           ? `vehicle-${index}.${extension}`
-          : `accessory-${sanitizeFileName(itemName || photo.itemId || `item-${index}`)}-${index}.${extension}`;
+          : `accessory-${sanitizeFileName(itemLabel || `item-${index}`)}-${index}.${extension}`;
         folder.file(fileName, blob);
         index += 1;
       }

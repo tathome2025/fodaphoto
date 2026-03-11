@@ -54,7 +54,7 @@ const RECENT_MODELS_KEY = "garage-photo-workbench.recent-models";
 function createAccessoryEntry() {
   return {
     id: `entry-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
-    itemId: "",
+    itemIds: [],
     notes: "",
     photos: [],
   };
@@ -77,7 +77,7 @@ function isBrandReady() {
 }
 
 function isAccessoryReady() {
-  return state.accessoryEntries.length > 0 && state.accessoryEntries.every((entry) => entry.itemId && entry.photos.length > 0);
+  return state.accessoryEntries.length > 0 && state.accessoryEntries.every((entry) => entry.itemIds.length > 0 && entry.photos.length > 0);
 }
 
 function flashAddAccessoryButton() {
@@ -392,11 +392,22 @@ function renderAccessoryPreview(entry) {
   )).join("");
 }
 
+function formatAccessorySelection(entry) {
+  if (!entry.itemIds.length) {
+    return "可選多於一項配件或維修項目。";
+  }
+
+  return `已選：${state.serviceItems
+    .filter((item) => entry.itemIds.includes(item.id))
+    .map((item) => item.name)
+    .join(" + ")}`;
+}
+
 function renderServiceButtons(entry) {
   return state.serviceItems.map((item) => `
-    <button class="choice-button ${entry.itemId === item.id ? "is-selected" : ""}" type="button" data-entry-item="${entry.id}:${item.id}">
+    <button class="choice-button ${entry.itemIds.includes(item.id) ? "is-selected" : ""}" type="button" data-entry-item="${entry.id}:${item.id}">
       <strong>${item.name}</strong>
-      <span>把這組相片歸入此項目</span>
+      <span>可多選</span>
     </button>
   `).join("");
 }
@@ -426,6 +437,7 @@ function renderAccessoryList() {
       <input class="utility-file-input" id="library-${entry.id}" type="file" accept="image/*" ${entry.photos.length ? "disabled" : ""}>
 
       <div class="choice-grid service-grid">${renderServiceButtons(entry)}</div>
+      <p class="accessory-subcopy">${formatAccessorySelection(entry)}</p>
 
       <div class="field-wide">
         <label for="notes-${entry.id}">項目備註</label>
@@ -453,7 +465,15 @@ function renderAccessoryList() {
       if (!entry) {
         return;
       }
-      entry.itemId = itemId;
+      if (entry.itemIds.includes(itemId)) {
+        entry.itemIds = entry.itemIds.filter((value) => value !== itemId);
+      } else {
+        const selected = new Set(entry.itemIds);
+        selected.add(itemId);
+        entry.itemIds = state.serviceItems
+          .map((item) => item.id)
+          .filter((id) => selected.has(id));
+      }
       renderAccessoryList();
     });
   });
@@ -720,9 +740,9 @@ function validateBeforeSave() {
   if (!state.accessoryEntries.length) {
     return "請至少加入 1 個配件或維修項目。";
   }
-  const invalidEntry = state.accessoryEntries.find((entry) => !entry.itemId || !entry.photos.length);
+  const invalidEntry = state.accessoryEntries.find((entry) => !entry.itemIds.length || !entry.photos.length);
   if (invalidEntry) {
-    return "每個配件項目都需要分類並至少上傳 1 張相片。";
+    return "每張配件 / 維修相都需要至少選 1 項分類並上傳 1 張相片。";
   }
   return "";
 }
@@ -752,7 +772,7 @@ function collectPayload() {
     vehicleModel: state.vehicleModel,
     vehiclePhotos: state.vehiclePhotos,
     accessoryEntries: state.accessoryEntries.map((entry) => ({
-      itemId: entry.itemId,
+      itemIds: [...entry.itemIds],
       notes: entry.notes || "",
       photos: entry.photos,
     })),

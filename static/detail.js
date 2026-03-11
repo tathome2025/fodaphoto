@@ -60,11 +60,15 @@ function setStatus(message, type) {
 
 function syncMeta() {
   const detail = state.detail;
+  const itemLabel = detail.photo.itemLabel
+    || (detail.photo.itemNames || []).join(" + ")
+    || detail.photo.itemName
+    || detail.photo.itemId;
   refs.backLink.href = `./?date=${encodeURIComponent(detail.captureSet.captureDate)}`;
   refs.photoTitle.textContent = detail.photo.fileName;
   refs.photoSummary.textContent = `${detail.captureSet.brandName}${detail.captureSet.vehicleModel ? ` ${detail.captureSet.vehicleModel}` : ""} · ${detail.captureSet.reference} · ${detail.captureSet.captureDate}`;
   refs.fileNameMeta.textContent = detail.photo.fileName;
-  refs.kindMeta.textContent = detail.photo.kind === "vehicle" ? "車輛照" : (detail.photo.itemName || detail.photo.itemId);
+  refs.kindMeta.textContent = detail.photo.kind === "vehicle" ? "車輛照" : itemLabel;
   refs.brandMeta.textContent = `${detail.captureSet.brandName}${detail.captureSet.vehicleModel ? ` ${detail.captureSet.vehicleModel}` : ""}`;
   refs.setMeta.textContent = detail.captureSet.reference;
   refs.folderMeta.textContent = buildFolderName(detail.captureSet);
