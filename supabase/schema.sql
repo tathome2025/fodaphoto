@@ -26,6 +26,16 @@ create table if not exists public.service_items (
   created_at timestamptz not null default timezone('utc', now())
 );
 
+create table if not exists public.brand_vehicle_models (
+  brand_id text not null references public.brands(id) on delete cascade,
+  model_key text not null,
+  model_name text not null,
+  last_used_at timestamptz not null default timezone('utc', now()),
+  created_at timestamptz not null default timezone('utc', now()),
+  updated_at timestamptz not null default timezone('utc', now()),
+  primary key (brand_id, model_key)
+);
+
 create table if not exists public.capture_sets (
   id uuid primary key default gen_random_uuid(),
   reference text not null,
@@ -57,6 +67,14 @@ create table if not exists public.photos (
   created_at timestamptz not null default timezone('utc', now()),
   constraint accessory_requires_service_item
     check ((kind = 'vehicle' and service_item_id is null) or (kind = 'accessory' and service_item_id is not null))
+);
+
+create table if not exists public.photo_service_items (
+  photo_id uuid not null references public.photos(id) on delete cascade,
+  service_item_id text not null references public.service_items(id),
+  sort_order integer not null default 100,
+  created_at timestamptz not null default timezone('utc', now()),
+  primary key (photo_id, service_item_id)
 );
 
 create table if not exists public.filters (
@@ -98,6 +116,15 @@ create index if not exists photos_capture_set_id_idx
 create index if not exists photos_service_item_id_idx
   on public.photos(service_item_id);
 
+create index if not exists brand_vehicle_models_brand_id_last_used_at_idx
+  on public.brand_vehicle_models(brand_id, last_used_at desc);
+
+create index if not exists photo_service_items_photo_id_idx
+  on public.photo_service_items(photo_id, sort_order);
+
+create index if not exists photo_service_items_service_item_id_idx
+  on public.photo_service_items(service_item_id);
+
 create index if not exists filters_created_by_idx
   on public.filters(created_by);
 
@@ -132,8 +159,10 @@ set
 
 alter table public.brands enable row level security;
 alter table public.service_items enable row level security;
+alter table public.brand_vehicle_models enable row level security;
 alter table public.capture_sets enable row level security;
 alter table public.photos enable row level security;
+alter table public.photo_service_items enable row level security;
 alter table public.filters enable row level security;
 alter table public.photo_edits enable row level security;
 
@@ -150,6 +179,28 @@ create policy "service items readable by authenticated users"
   for select
   to authenticated
   using (true);
+
+drop policy if exists "brand vehicle models readable by authenticated users" on public.brand_vehicle_models;
+create policy "brand vehicle models readable by authenticated users"
+  on public.brand_vehicle_models
+  for select
+  to authenticated
+  using (true);
+
+drop policy if exists "brand vehicle models insert by authenticated users" on public.brand_vehicle_models;
+create policy "brand vehicle models insert by authenticated users"
+  on public.brand_vehicle_models
+  for insert
+  to authenticated
+  with check (true);
+
+drop policy if exists "brand vehicle models update by authenticated users" on public.brand_vehicle_models;
+create policy "brand vehicle models update by authenticated users"
+  on public.brand_vehicle_models
+  for update
+  to authenticated
+  using (true)
+  with check (true);
 
 drop policy if exists "capture sets read own" on public.capture_sets;
 create policy "capture sets read own"
@@ -219,6 +270,75 @@ create policy "photos update own set"
       select 1
       from public.capture_sets
       where capture_sets.id = photos.capture_set_id
+        and capture_sets.created_by = auth.uid()
+    )
+  );
+
+drop policy if exists "photo service items read own photo" on public.photo_service_items;
+create policy "photo service items read own photo"
+  on public.photo_service_items
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.photos
+      join public.capture_sets on capture_sets.id = photos.capture_set_id
+      where photos.id = photo_service_items.photo_id
+        and capture_sets.created_by = auth.uid()
+    )
+  );
+
+drop policy if exists "photo service items insert own photo" on public.photo_service_items;
+create policy "photo service items insert own photo"
+  on public.photo_service_items
+  for insert
+  to authenticated
+  with check (
+    exists (
+      select 1
+      from public.photos
+      join public.capture_sets on capture_sets.id = photos.capture_set_id
+      where photos.id = photo_service_items.photo_id
+        and capture_sets.created_by = auth.uid()
+    )
+  );
+
+drop policy if exists "photo service items update own photo" on public.photo_service_items;
+create policy "photo service items update own photo"
+  on public.photo_service_items
+  for update
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.photos
+      join public.capture_sets on capture_sets.id = photos.capture_set_id
+      where photos.id = photo_service_items.photo_id
+        and capture_sets.created_by = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1
+      from public.photos
+      join public.capture_sets on capture_sets.id = photos.capture_set_id
+      where photos.id = photo_service_items.photo_id
+        and capture_sets.created_by = auth.uid()
+    )
+  );
+
+drop policy if exists "photo service items delete own photo" on public.photo_service_items;
+create policy "photo service items delete own photo"
+  on public.photo_service_items
+  for delete
+  to authenticated
+  using (
+    exists (
+      select 1
+      from public.photos
+      join public.capture_sets on capture_sets.id = photos.capture_set_id
+      where photos.id = photo_service_items.photo_id
         and capture_sets.created_by = auth.uid()
     )
   );
@@ -300,6 +420,16 @@ create policy "photo edits update own photo"
     )
   );
 
+insert into public.photo_service_items (photo_id, service_item_id, sort_order)
+select
+  id as photo_id,
+  service_item_id,
+  10 as sort_order
+from public.photos
+where kind = 'accessory'
+  and service_item_id is not null
+on conflict (photo_id, service_item_id) do nothing;
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
   'garage-originals',
@@ -362,10 +492,19 @@ comment on table public.capture_sets is
   '每次拍攝的一組案件，車輛品牌、車輛照與多個配件項目都連到這張主表。';
 
 comment on table public.photos is
-  '原始相片資料。vehicle 與 accessory 共用一表，accessory 需帶 service_item_id。';
+  '原始相片資料。vehicle 與 accessory 共用一表，service_item_id 保留配件相的主要分類。';
+
+comment on table public.photo_service_items is
+  '配件相片與多個配件 / 維修項目的對應表。每張配件相可連到多個 service item。';
+
+comment on table public.brand_vehicle_models is
+  '各品牌共用的車型資料庫。不同設備與帳號可共用最近輸入過的車型。';
 
 comment on table public.photo_edits is
   '非破壞式編修紀錄。正式版建議保留歷史，真正輸出檔只在下載或另存時生成。';
 
 comment on column public.photos.storage_path is
   '建議格式：{auth.uid}/originals/YYYY/MM/DD/{capture_set_id}/{photo_id}.jpg';
+
+comment on column public.photos.service_item_id is
+  '配件相的主要分類。完整多選關聯請看 photo_service_items。';
