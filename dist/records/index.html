@@ -3,26 +3,25 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>相片 Edit | FODA工作流程</title>
+  <title>查看紀錄 | FODA工作流程</title>
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script type="module" crossorigin src="../assets/edit-DjGd8bqC.js"></script>
+  <script type="module" crossorigin src="../assets/records-CGx2FVNY.js"></script>
   <link rel="modulepreload" crossorigin href="../assets/workbench-DEQ833e2.js">
   <link rel="stylesheet" crossorigin href="../assets/workbench-DRFtQBCR.css">
 </head>
-<body class="page-edit">
+<body class="page-records">
   <header class="workspace-topbar">
     <a class="back-link" href="../">← 返回首頁</a>
-    <a class="secondary-link" href="../capture/">進入安裝維修保養</a>
+    <a class="secondary-link" href="../capture/">返回安裝維修保養</a>
   </header>
 
-  <main class="edit-shell">
+  <main class="records-shell">
     <aside class="calendar-panel">
       <div class="panel-head">
-        <p class="eyebrow">Upload Calendar</p>
-        <h1>日曆</h1>
-        <p class="panel-copy">有 upload 的日子會顯示標記；按進去可查看當天所有案件與相片。</p>
+        <p class="eyebrow">Activity Calendar</p>
+        <h1>查看紀錄</h1>
+        <p class="panel-copy">按下日期後，可查看當日有哪台車被 Check-in 或新增安裝維修保養資料。</p>
       </div>
 
       <div class="calendar-head">
@@ -41,40 +40,24 @@
         <div class="weekday">六</div>
       </div>
       <div class="calendar-grid" id="calendarGrid"></div>
-
-      <p class="footer-note">這個頁面會直接從 Supabase 讀取當月案件日期與當日相片。</p>
     </aside>
 
     <section class="list-panel">
       <div class="panel-head">
-        <p class="eyebrow">Daily Library</p>
+        <p class="eyebrow">Daily Activity</p>
         <h1 id="selectedDateTitle"></h1>
         <p class="panel-copy" id="selectedDateMeta"></p>
       </div>
 
       <div class="toolbar-block">
         <div class="toolbar-row">
-          <span class="filter-chip" id="selectedFilterChip">未選擇 filter</span>
-          <p class="status-text" id="editStatus">選擇左邊日曆日期，或從右側選一個已儲存 filter 再批量套用。</p>
-        </div>
-        <div class="toolbar-row">
-          <button class="primary-button" id="applyDayFilterBtn" type="button">為當天全部相片套用 filter</button>
-          <button class="secondary-button" id="downloadDayBtn" type="button">下載當天所有相片</button>
+          <span class="filter-chip" id="selectedDateChip">-</span>
+          <p class="status-text" id="recordsStatus">選擇左邊日期，查看當日處理過的車輛與負責帳號。</p>
         </div>
       </div>
 
-      <div class="set-list" id="setList"></div>
+      <div class="set-list" id="recordList"></div>
     </section>
-
-    <aside class="filter-panel">
-      <div class="panel-head">
-        <p class="eyebrow">Saved Filters</p>
-        <h1>Filter 庫</h1>
-        <p class="panel-copy">從這裡選一個已儲存 filter，然後一鍵批量套用到當天相片。</p>
-      </div>
-
-      <div class="filter-list" id="filterList"></div>
-    </aside>
   </main>
 </body>
 </html>

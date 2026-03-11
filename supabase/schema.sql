@@ -44,12 +44,16 @@ create table if not exists public.capture_sets (
   brand_id text not null references public.brands(id),
   vehicle_model text not null default '',
   created_by uuid not null references auth.users(id),
+  created_by_label text not null default '',
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
 
 alter table public.capture_sets
   add column if not exists vehicle_model text not null default '';
+
+alter table public.capture_sets
+  add column if not exists created_by_label text not null default '';
 
 create table if not exists public.photos (
   id uuid primary key default gen_random_uuid(),
@@ -63,11 +67,19 @@ create table if not exists public.photos (
   width integer,
   height integer,
   sort_order integer not null default 100,
+  created_by uuid references auth.users(id),
+  created_by_label text not null default '',
   taken_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   constraint accessory_requires_service_item
     check ((kind = 'vehicle' and service_item_id is null) or (kind = 'accessory' and service_item_id is not null))
 );
+
+alter table public.photos
+  add column if not exists created_by uuid references auth.users(id);
+
+alter table public.photos
+  add column if not exists created_by_label text not null default '';
 
 create table if not exists public.photo_service_items (
   photo_id uuid not null references public.photos(id) on delete cascade,
@@ -518,3 +530,9 @@ comment on column public.photos.storage_path is
 
 comment on column public.photos.service_item_id is
   '配件相的主要分類。完整多選關聯請看 photo_service_items。';
+
+comment on column public.capture_sets.created_by_label is
+  '建立 Check-in 案件的帳號標記，用於多人分工畫面顯示。';
+
+comment on column public.photos.created_by_label is
+  '建立這張相片及其對應輸入資料的帳號標記，用於多人分工畫面顯示。';

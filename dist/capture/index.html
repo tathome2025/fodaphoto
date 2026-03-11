@@ -6,14 +6,17 @@
   <title>安裝維修保養 | FODA工作流程</title>
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script type="module" crossorigin src="../assets/capture-Bqqdbkxs.js"></script>
-  <link rel="modulepreload" crossorigin href="../assets/workbench-BWuwk5XA.js">
-  <link rel="stylesheet" crossorigin href="../assets/workbench-B_cUgdS8.css">
+  <script type="module" crossorigin src="../assets/capture-Bh0N1P2m.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/workbench-DEQ833e2.js">
+  <link rel="stylesheet" crossorigin href="../assets/workbench-DRFtQBCR.css">
 </head>
 <body class="page-capture">
   <header class="topbar">
     <a class="back-link" href="../">← 返回首頁</a>
-    <a class="secondary-link" href="../checkin/">前往 Check-in</a>
+    <div class="topbar-links">
+      <a class="secondary-link" href="../checkin/">前往 Check-in</a>
+      <a class="secondary-link" href="../records/">查看紀錄</a>
+    </div>
   </header>
 
   <main class="capture-shell">
@@ -29,7 +32,10 @@
             <h2>第一步：選擇已 Check-in 車輛</h2>
             <p>先於 Check-in 建立車輛案件，這裡會顯示最近已 Check-in 的車輛縮圖供用戶分工處理。</p>
           </div>
-          <a class="secondary-link" href="../checkin/">建立新 Check-in</a>
+          <div class="topbar-links">
+            <a class="secondary-link" href="../checkin/">建立新 Check-in</a>
+            <a class="secondary-link" href="../records/">查看紀錄</a>
+          </div>
         </div>
 
         <div class="vehicle-selector-grid" id="checkInVehicleList"></div>
@@ -80,6 +86,7 @@
       <button class="secondary-button" id="addAccessoryBtn" type="button">加入更多項目</button>
       <button class="primary-button" id="saveSetBtn" type="submit" form="captureForm">完成</button>
     </div>
+    <a class="ghost-button actionbar-subaction" href="../records/">查看紀錄</a>
     <p class="status-text" id="captureStatus">請先選擇已 Check-in 車輛，再為該車加入安裝、維修或保養資料。</p>
   </footer>
 </body>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>查看紀錄 | FODA工作流程</title>
+  <link rel="stylesheet" href="../static/theme.css">
+  <script src="../static/runtime-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" src="../static/records.js"></script>
+</head>
+<body class="page-records">
+  <header class="workspace-topbar">
+    <a class="back-link" href="../">← 返回首頁</a>
+    <a class="secondary-link" href="../capture/">返回安裝維修保養</a>
+  </header>
+
+  <main class="records-shell">
+    <aside class="calendar-panel">
+      <div class="panel-head">
+        <p class="eyebrow">Activity Calendar</p>
+        <h1>查看紀錄</h1>
+        <p class="panel-copy">按下日期後，可查看當日有哪台車被 Check-in 或新增安裝維修保養資料。</p>
+      </div>
+
+      <div class="calendar-head">
+        <button class="calendar-nav" id="prevMonthBtn" type="button">上月</button>
+        <strong id="monthLabel"></strong>
+        <button class="calendar-nav" id="nextMonthBtn" type="button">下月</button>
+      </div>
+
+      <div class="calendar-grid">
+        <div class="weekday">日</div>
+        <div class="weekday">一</div>
+        <div class="weekday">二</div>
+        <div class="weekday">三</div>
+        <div class="weekday">四</div>
+        <div class="weekday">五</div>
+        <div class="weekday">六</div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </aside>
+
+    <section class="list-panel">
+      <div class="panel-head">
+        <p class="eyebrow">Daily Activity</p>
+        <h1 id="selectedDateTitle"></h1>
+        <p class="panel-copy" id="selectedDateMeta"></p>
+      </div>
+
+      <div class="toolbar-block">
+        <div class="toolbar-row">
+          <span class="filter-chip" id="selectedDateChip">-</span>
+          <p class="status-text" id="recordsStatus">選擇左邊日期，查看當日處理過的車輛與負責帳號。</p>
+        </div>
+      </div>
+
+      <div class="set-list" id="recordList"></div>
+    </section>
+  </main>
+</body>
+</html>

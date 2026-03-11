@@ -149,6 +149,7 @@ function resetAccessoryEntries() {
   clearAccessoryAssets();
   state.accessoryEntries = [createAccessoryEntry()];
   renderAccessoryList();
+  renderCheckInVehicleList();
 }
 
 function renderSelectedVehicleSummary() {
@@ -181,11 +182,25 @@ function renderSelectedVehicleSummary() {
           <span class="meta-chip">${selected.reference}</span>
           <span class="meta-chip">${selected.captureDate}</span>
           <span class="meta-chip">已入 ${selected.accessoryEntries.length} 項服務</span>
+          <span class="meta-chip">Check-in：${selected.createdByLabel || "未記錄"}</span>
         </div>
         <p class="muted-copy">${selected.notes || "此車輛已完成 Check-in，可在下方新增安裝、維修或保養紀錄。"}</p>
+        <div class="toolbar-row">
+          <button class="ghost-button" type="button" id="changeVehicleBtn">重新選擇車輛</button>
+        </div>
       </div>
     </article>
   `;
+
+  refs.selectedVehicleSummary.querySelector("#changeVehicleBtn")?.addEventListener("click", () => {
+    if (hasDraftServiceData()) {
+      resetAccessoryEntries();
+      setStatus("已清空目前服務草稿，請重新選擇車輛。", "danger");
+    }
+    state.selectedCaptureSetId = "";
+    renderCheckInVehicleList();
+    renderSelectedVehicleSummary();
+  });
 }
 
 function renderCheckInVehicleList() {
@@ -194,6 +209,17 @@ function renderCheckInVehicleList() {
       <div class="empty-state">
         <strong>暫時未有已 Check-in 車輛</strong>
         <p class="muted-copy">請先到 Check-in 頁建立車輛資料，然後再回來拍安裝維修保養相片。</p>
+      </div>
+    `;
+    renderSelectedVehicleSummary();
+    return;
+  }
+
+  if (state.selectedCaptureSetId && hasDraftServiceData()) {
+    refs.checkInVehicleList.innerHTML = `
+      <div class="empty-state compact">
+        <strong>已鎖定目前車輛</strong>
+        <p class="muted-copy">你已開始輸入安裝維修保養項目，縮圖列表已先隱藏避免誤按。需要更換車輛可按下方「重新選擇車輛」。</p>
       </div>
     `;
     renderSelectedVehicleSummary();
@@ -463,6 +489,8 @@ function renderAccessoryList() {
       }
     });
   });
+
+  renderCheckInVehicleList();
 }
 
 async function applyAccessoryFile(entry, file) {

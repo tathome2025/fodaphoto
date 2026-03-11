@@ -133,7 +133,7 @@ function consumeErrorParam() {
   }
 
   const messages = {
-    "no-session": "請先登入，才能進入 Check-in、安裝維修保養或 edit 頁面。",
+    "no-session": "請先登入，才能進入 Check-in、安裝維修保養、查看紀錄或 edit 頁面。",
     "missing-config": "尚未設定 Supabase。請先補回 URL 與 Publishable Key。",
   };
   preserveStatusOnce = true;

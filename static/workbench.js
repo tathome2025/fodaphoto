@@ -73,6 +73,17 @@ export function formatDateHeading(dateText) {
   }).format(new Date(`${dateText}T00:00:00`));
 }
 
+export function formatDateTime(dateTimeText) {
+  return new Intl.DateTimeFormat("zh-Hant-HK", {
+    timeZone: appConfig.timezone,
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(dateTimeText));
+}
+
 export function formatMonthHeading(date) {
   return new Intl.DateTimeFormat("zh-Hant-HK", {
     timeZone: appConfig.timezone,
@@ -105,6 +116,56 @@ export function sanitizeFileName(value) {
 
 function joinItemNames(itemNames) {
   return (itemNames || []).filter(Boolean).join("+");
+}
+
+function timeZoneOffsetMinutes(date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: appConfig.timezone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+  }).formatToParts(date);
+  const offsetText = parts.find((part) => part.type === "timeZoneName")?.value || "GMT+0";
+  const match = offsetText.match(/GMT([+-]\d{1,2})(?::?(\d{2}))?/i);
+  if (!match) {
+    return 0;
+  }
+  const hours = Number(match[1]);
+  const minutes = Number(match[2] || 0);
+  return hours * 60 + (hours >= 0 ? minutes : -minutes);
+}
+
+function localDateStartIso(dateText) {
+  const [year, month, day] = dateText.split("-").map(Number);
+  const offset = timeZoneOffsetMinutes(new Date(Date.UTC(year, month - 1, day, 12, 0, 0)));
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0) - (offset * 60 * 1000)).toISOString();
+}
+
+function nextLocalDateText(dateText) {
+  const [year, month, day] = dateText.split("-").map(Number);
+  const next = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0));
+  return `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, "0")}-${String(next.getUTCDate()).padStart(2, "0")}`;
+}
+
+function localDateEndExclusiveIso(dateText) {
+  return localDateStartIso(nextLocalDateText(dateText));
+}
+
+function localDateKeyFromTimestamp(timestamp) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: appConfig.timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+function isTimestampOnLocalDate(timestamp, dateText) {
+  return localDateKeyFromTimestamp(timestamp) === dateText;
+}
+
+async function getOperatorLabel() {
+  const user = await getCurrentUser();
+  return user?.email || user?.phone || user?.id || "unknown-user";
 }
 
 export function buildFolderName(captureSet) {
@@ -612,6 +673,8 @@ function groupPhotos(captureSet, photos, currentEdits, photoServiceItemMap) {
       width: photo.width,
       height: photo.height,
       createdAt: photo.created_at,
+      createdBy: photo.created_by || null,
+      createdByLabel: photo.created_by_label || "",
       savedFilterId: edit?.filter_id || null,
       adjustments: cloneAdjustments(edit?.adjustments || DEFAULT_ADJUSTMENTS),
     };
@@ -676,7 +739,7 @@ async function hydrateCaptureSetRows(sets, lookups) {
   const setIds = sets.map((captureSet) => captureSet.id);
   const { data: photos, error: photoError } = await assertSupabaseConfigured()
     .from("photos")
-    .select("id, capture_set_id, kind, service_item_id, item_note, storage_path, original_file_name, mime_type, width, height, sort_order, created_at")
+    .select("id, capture_set_id, kind, service_item_id, item_note, storage_path, original_file_name, mime_type, width, height, sort_order, created_at, created_by, created_by_label")
     .in("capture_set_id", setIds)
     .order("capture_set_id", { ascending: true })
     .order("sort_order", { ascending: true });
@@ -699,6 +762,8 @@ async function hydrateCaptureSetRows(sets, lookups) {
       vehicleModel: captureSet.vehicle_model || "",
       brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
       createdAt: captureSet.created_at,
+      createdBy: captureSet.created_by || null,
+      createdByLabel: captureSet.created_by_label || "",
       updatedAt: captureSet.updated_at || captureSet.created_at,
       serviceItemLookup: lookups.serviceItemLookup,
     };
@@ -714,7 +779,7 @@ export async function fetchCaptureSetsByDate(date) {
 
   const { data: sets, error: setError } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, updated_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, updated_at")
     .eq("capture_date", date)
     .order("created_at", { ascending: false });
 
@@ -731,7 +796,7 @@ export async function fetchRecentCheckInSets(limit = 24) {
 
   const { data: sets, error } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, updated_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, updated_at")
     .order("updated_at", { ascending: false })
     .limit(limit);
 
@@ -810,7 +875,7 @@ async function uploadPhotoAsset(userId, captureDate, captureSetId, asset) {
   };
 }
 
-async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, vehiclePhotos = [], accessoryEntries = [] }) {
+async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, operatorLabel, vehiclePhotos = [], accessoryEntries = [] }) {
   const client = assertSupabaseConfigured();
   const photoRows = [];
   const photoServiceItemRows = [];
@@ -829,6 +894,8 @@ async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, vehic
       width: asset.width,
       height: asset.height,
       sort_order: index * 10 + 10,
+      created_by: userId,
+      created_by_label: operatorLabel,
     });
   }
 
@@ -849,6 +916,8 @@ async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, vehic
         width: asset.width,
         height: asset.height,
         sort_order: accessorySortOrder,
+        created_by: userId,
+        created_by_label: operatorLabel,
       });
 
       selectedItemIds.forEach((itemId, index) => {
@@ -894,6 +963,7 @@ async function touchCaptureSet(captureSetId) {
 export async function createCheckInSet(payload) {
   const client = assertSupabaseConfigured();
   const user = await getCurrentUser();
+  const operatorLabel = await getOperatorLabel();
   const captureSetId = uid();
   const captureDate = payload.captureDate || todayLocal();
 
@@ -905,6 +975,7 @@ export async function createCheckInSet(payload) {
     brand_id: payload.brandId,
     vehicle_model: payload.vehicleModel || "",
     created_by: user.id,
+    created_by_label: operatorLabel,
   });
 
   if (insertSetError) {
@@ -915,6 +986,7 @@ export async function createCheckInSet(payload) {
     captureSetId,
     captureDate,
     userId: user.id,
+    operatorLabel,
     vehiclePhotos: payload.vehiclePhotos || [],
   });
 
@@ -929,6 +1001,7 @@ export async function createCheckInSet(payload) {
 export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEntries) {
   const client = assertSupabaseConfigured();
   const user = await getCurrentUser();
+  const operatorLabel = await getOperatorLabel();
 
   const { data: captureSet, error: captureSetError } = await client
     .from("capture_sets")
@@ -944,6 +1017,7 @@ export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEn
     captureSetId,
     captureDate: captureSet.capture_date,
     userId: user.id,
+    operatorLabel,
     accessoryEntries: accessoryEntries || [],
   });
   await touchCaptureSet(captureSetId);
@@ -970,7 +1044,7 @@ export async function fetchPhotoDetail(photoId) {
 
   const { data: photo, error: photoError } = await client
     .from("photos")
-    .select("id, capture_set_id, kind, service_item_id, item_note, storage_path, original_file_name, mime_type, width, height, created_at")
+    .select("id, capture_set_id, kind, service_item_id, item_note, storage_path, original_file_name, mime_type, width, height, created_at, created_by, created_by_label")
     .eq("id", photoId)
     .single();
 
@@ -980,7 +1054,7 @@ export async function fetchPhotoDetail(photoId) {
 
   const { data: captureSet, error: setError } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label")
     .eq("id", photo.capture_set_id)
     .single();
 
@@ -1024,6 +1098,8 @@ export async function fetchPhotoDetail(photoId) {
       vehicleModel: captureSet.vehicle_model || "",
       brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
       createdAt: captureSet.created_at,
+      createdBy: captureSet.created_by || null,
+      createdByLabel: captureSet.created_by_label || "",
       accessoryEntries: captureSetAccessoryIds.map((itemId) => ({
         itemId,
         itemName: lookups.serviceItemLookup.get(itemId)?.name || itemId,
@@ -1045,10 +1121,130 @@ export async function fetchPhotoDetail(photoId) {
       width: photo.width,
       height: photo.height,
       createdAt: photo.created_at,
+      createdBy: photo.created_by || null,
+      createdByLabel: photo.created_by_label || "",
       savedFilterId: edit?.filter_id || null,
       adjustments: cloneAdjustments(edit?.adjustments || DEFAULT_ADJUSTMENTS),
     },
   };
+}
+
+export async function fetchActivityDates(year, month) {
+  const client = assertSupabaseConfigured();
+  const startText = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const monthEnd = new Date(Date.UTC(year, month + 1, 0));
+  const endText = `${monthEnd.getUTCFullYear()}-${String(monthEnd.getUTCMonth() + 1).padStart(2, "0")}-${String(monthEnd.getUTCDate()).padStart(2, "0")}`;
+  const rangeStart = localDateStartIso(startText);
+  const rangeEndExclusive = localDateEndExclusiveIso(endText);
+
+  const [{ data: sets, error: setError }, { data: photos, error: photoError }] = await Promise.all([
+    client
+      .from("capture_sets")
+      .select("id, created_at")
+      .gte("created_at", rangeStart)
+      .lt("created_at", rangeEndExclusive),
+    client
+      .from("photos")
+      .select("capture_set_id, created_at")
+      .gte("created_at", rangeStart)
+      .lt("created_at", rangeEndExclusive),
+  ]);
+
+  if (setError) {
+    throw setError;
+  }
+  if (photoError) {
+    throw photoError;
+  }
+
+  const counts = new Map();
+  (sets || []).forEach((record) => {
+    const key = localDateKeyFromTimestamp(record.created_at);
+    if (!counts.has(key)) {
+      counts.set(key, new Set());
+    }
+    counts.get(key).add(record.id);
+  });
+  (photos || []).forEach((record) => {
+    const key = localDateKeyFromTimestamp(record.created_at);
+    if (!counts.has(key)) {
+      counts.set(key, new Set());
+    }
+    counts.get(key).add(record.capture_set_id);
+  });
+
+  return Object.fromEntries([...counts.entries()].map(([key, ids]) => [key, ids.size]));
+}
+
+export async function fetchCaptureSetsByActivityDate(dateText) {
+  const client = assertSupabaseConfigured();
+  const lookups = await loadLookups();
+  const rangeStart = localDateStartIso(dateText);
+  const rangeEndExclusive = localDateEndExclusiveIso(dateText);
+
+  const [{ data: setsCreated, error: setError }, { data: photosCreated, error: photoError }] = await Promise.all([
+    client
+      .from("capture_sets")
+      .select("id")
+      .gte("created_at", rangeStart)
+      .lt("created_at", rangeEndExclusive),
+    client
+      .from("photos")
+      .select("capture_set_id")
+      .gte("created_at", rangeStart)
+      .lt("created_at", rangeEndExclusive),
+  ]);
+
+  if (setError) {
+    throw setError;
+  }
+  if (photoError) {
+    throw photoError;
+  }
+
+  const setIds = [...new Set([
+    ...(setsCreated || []).map((record) => record.id),
+    ...(photosCreated || []).map((record) => record.capture_set_id),
+  ])];
+
+  if (!setIds.length) {
+    return [];
+  }
+
+  const { data: sets, error } = await client
+    .from("capture_sets")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, updated_at")
+    .in("id", setIds)
+    .order("updated_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  const hydrated = await hydrateCaptureSetRows(sets || [], lookups);
+  return hydrated
+    .map((captureSet) => ({
+      ...captureSet,
+      activityOnDate: {
+        hasCheckIn: isTimestampOnLocalDate(captureSet.createdAt, dateText),
+        serviceEntries: captureSet.accessoryEntries.filter((entry) =>
+          entry.photos.some((photo) => isTimestampOnLocalDate(photo.createdAt, dateText))
+        ),
+      },
+    }))
+    .sort((left, right) => {
+      const leftTimes = [
+        left.activityOnDate.hasCheckIn ? left.createdAt : null,
+        ...left.activityOnDate.serviceEntries.flatMap((entry) => entry.photos.map((photo) => photo.createdAt)),
+      ].filter(Boolean);
+      const rightTimes = [
+        right.activityOnDate.hasCheckIn ? right.createdAt : null,
+        ...right.activityOnDate.serviceEntries.flatMap((entry) => entry.photos.map((photo) => photo.createdAt)),
+      ].filter(Boolean);
+      const leftLatest = leftTimes.sort().slice(-1)[0] || left.updatedAt;
+      const rightLatest = rightTimes.sort().slice(-1)[0] || right.updatedAt;
+      return rightLatest.localeCompare(leftLatest);
+    });
 }
 
 export async function upsertCurrentPhotoEdit(photoId, adjustments, filterId = null) {
