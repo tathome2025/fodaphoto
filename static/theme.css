@@ -1096,13 +1096,15 @@ button {
 .camera-stage {
   overflow: hidden;
   background: #000;
+  aspect-ratio: 4 / 3;
 }
 
 .camera-stage video,
 .camera-stage canvas {
   display: block;
   width: 100%;
-  aspect-ratio: 3 / 4;
+  height: 100%;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
 }
 

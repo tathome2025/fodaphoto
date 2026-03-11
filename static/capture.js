@@ -37,7 +37,11 @@ const state = {
   vehicleThumbUrls: new Map(),
   cameraTarget: null,
   cameraStream: null,
+  cameraPreviewFrame: 0,
 };
+
+const CAMERA_LANDSCAPE_RATIO = 4 / 3;
+const CAMERA_PREVIEW_MAX_WIDTH = 1280;
 
 function createAccessoryEntry() {
   return {
@@ -67,6 +71,106 @@ function setStatus(message, type) {
   if (type) {
     refs.captureStatus.classList.add(`is-${type}`);
   }
+}
+
+function computeLandscapeFrame(sourceWidth, sourceHeight, maxWidth = 0) {
+  const rotated = sourceHeight > sourceWidth;
+  const landscapeWidth = rotated ? sourceHeight : sourceWidth;
+  const landscapeHeight = rotated ? sourceWidth : sourceHeight;
+
+  let targetHeight = landscapeHeight;
+  let targetWidth = Math.round(targetHeight * CAMERA_LANDSCAPE_RATIO);
+  if (targetWidth > landscapeWidth) {
+    targetWidth = landscapeWidth;
+    targetHeight = Math.round(targetWidth / CAMERA_LANDSCAPE_RATIO);
+  }
+
+  if (maxWidth && targetWidth > maxWidth) {
+    const scale = maxWidth / targetWidth;
+    targetWidth = Math.round(targetWidth * scale);
+    targetHeight = Math.round(targetHeight * scale);
+  }
+
+  return {
+    rotated,
+    targetWidth,
+    targetHeight,
+  };
+}
+
+function drawLandscapeCameraFrame(context, source, sourceWidth, sourceHeight, frame) {
+  context.save();
+  context.clearRect(0, 0, frame.targetWidth, frame.targetHeight);
+  context.fillStyle = "#000";
+  context.fillRect(0, 0, frame.targetWidth, frame.targetHeight);
+
+  if (frame.rotated) {
+    const scale = Math.max(
+      frame.targetWidth / sourceHeight,
+      frame.targetHeight / sourceWidth
+    );
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    context.translate(frame.targetWidth / 2, frame.targetHeight / 2);
+    context.rotate(Math.PI / 2);
+    context.drawImage(source, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+  } else {
+    const scale = Math.max(
+      frame.targetWidth / sourceWidth,
+      frame.targetHeight / sourceHeight
+    );
+    const drawWidth = sourceWidth * scale;
+    const drawHeight = sourceHeight * scale;
+    context.drawImage(
+      source,
+      (frame.targetWidth - drawWidth) / 2,
+      (frame.targetHeight - drawHeight) / 2,
+      drawWidth,
+      drawHeight
+    );
+  }
+
+  context.restore();
+}
+
+function stopCameraPreview() {
+  if (state.cameraPreviewFrame) {
+    window.cancelAnimationFrame(state.cameraPreviewFrame);
+    state.cameraPreviewFrame = 0;
+  }
+}
+
+function startCameraPreview() {
+  stopCameraPreview();
+
+  const render = () => {
+    if (refs.cameraOverlay.hidden) {
+      stopCameraPreview();
+      return;
+    }
+
+    const width = refs.cameraVideo.videoWidth;
+    const height = refs.cameraVideo.videoHeight;
+    if (!width || !height) {
+      state.cameraPreviewFrame = window.requestAnimationFrame(render);
+      return;
+    }
+
+    const frame = computeLandscapeFrame(width, height, CAMERA_PREVIEW_MAX_WIDTH);
+    if (refs.cameraCanvas.width !== frame.targetWidth || refs.cameraCanvas.height !== frame.targetHeight) {
+      refs.cameraCanvas.width = frame.targetWidth;
+      refs.cameraCanvas.height = frame.targetHeight;
+    }
+
+    const context = refs.cameraCanvas.getContext("2d");
+    if (context) {
+      drawLandscapeCameraFrame(context, refs.cameraVideo, width, height, frame);
+    }
+
+    state.cameraPreviewFrame = window.requestAnimationFrame(render);
+  };
+
+  state.cameraPreviewFrame = window.requestAnimationFrame(render);
 }
 
 function syncCurrentUser(user) {
@@ -453,6 +557,7 @@ async function requestCameraStream() {
 }
 
 async function stopCameraStream() {
+  stopCameraPreview();
   if (state.cameraStream) {
     state.cameraStream.getTracks().forEach((track) => track.stop());
     state.cameraStream = null;
@@ -476,11 +581,14 @@ async function openCameraOverlay(target) {
   state.cameraTarget = target;
   refs.cameraOverlay.hidden = false;
   document.body.classList.add("camera-open");
+  refs.cameraVideo.hidden = true;
+  refs.cameraCanvas.hidden = false;
 
   try {
     state.cameraStream = await requestCameraStream();
     refs.cameraVideo.srcObject = state.cameraStream;
     await refs.cameraVideo.play();
+    startCameraPreview();
   } catch (error) {
     await closeCameraOverlay();
     setStatus(describeSupabaseError(error), "danger");
@@ -514,13 +622,14 @@ async function handleCameraCapture() {
 
   refs.shutterCameraBtn.disabled = true;
   try {
-    refs.cameraCanvas.width = width;
-    refs.cameraCanvas.height = height;
+    const frame = computeLandscapeFrame(width, height);
+    refs.cameraCanvas.width = frame.targetWidth;
+    refs.cameraCanvas.height = frame.targetHeight;
     const context = refs.cameraCanvas.getContext("2d");
     if (!context) {
       throw new Error("無法建立拍照畫布。");
     }
-    context.drawImage(refs.cameraVideo, 0, 0, width, height);
+    drawLandscapeCameraFrame(context, refs.cameraVideo, width, height, frame);
     const blob = await new Promise((resolve, reject) => {
       refs.cameraCanvas.toBlob(
         (result) => (result ? resolve(result) : reject(new Error("拍照失敗。"))),
