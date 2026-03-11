@@ -45,6 +45,9 @@ create table if not exists public.capture_sets (
   vehicle_model text not null default '',
   created_by uuid not null references auth.users(id),
   created_by_label text not null default '',
+  service_completed_at timestamptz,
+  service_completed_by uuid references auth.users(id),
+  service_completed_by_label text not null default '',
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
 );
@@ -54,6 +57,15 @@ alter table public.capture_sets
 
 alter table public.capture_sets
   add column if not exists created_by_label text not null default '';
+
+alter table public.capture_sets
+  add column if not exists service_completed_at timestamptz;
+
+alter table public.capture_sets
+  add column if not exists service_completed_by uuid references auth.users(id);
+
+alter table public.capture_sets
+  add column if not exists service_completed_by_label text not null default '';
 
 create table if not exists public.photos (
   id uuid primary key default gen_random_uuid(),
@@ -533,6 +545,12 @@ comment on column public.photos.service_item_id is
 
 comment on column public.capture_sets.created_by_label is
   '建立 Check-in 案件的帳號標記，用於多人分工畫面顯示。';
+
+comment on column public.capture_sets.service_completed_at is
+  '安裝維修保養已完成的時間。完成後不再於安裝維修保養頁顯示。';
+
+comment on column public.capture_sets.service_completed_by_label is
+  '按下完成安裝維修保養的帳號標記。';
 
 comment on column public.photos.created_by_label is
   '建立這張相片及其對應輸入資料的帳號標記，用於多人分工畫面顯示。';
