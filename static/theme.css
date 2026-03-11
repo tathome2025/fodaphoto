@@ -868,15 +868,25 @@ button {
 .vehicle-select-card {
   display: grid;
   overflow: hidden;
-  padding: 0;
+  padding: 0.35rem;
   text-align: left;
   width: 100%;
   max-width: 100px;
+  gap: 0.35rem;
 }
 
 .vehicle-select-card.is-selected {
   border-color: rgba(243, 161, 58, 0.44);
   background: var(--accent-soft);
+}
+
+.vehicle-select-main {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
 }
 
 .vehicle-select-thumb,
@@ -925,6 +935,16 @@ button {
   color: var(--muted);
   font-size: 0.74rem;
   line-height: 1.25;
+}
+
+.vehicle-select-actions {
+  display: grid;
+}
+
+.vehicle-select-actions .tiny-button {
+  min-height: 1.8rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.68rem;
 }
 
 .selected-vehicle-summary {

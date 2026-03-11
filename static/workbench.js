@@ -764,6 +764,9 @@ async function hydrateCaptureSetRows(sets, lookups) {
       createdAt: captureSet.created_at,
       createdBy: captureSet.created_by || null,
       createdByLabel: captureSet.created_by_label || "",
+      serviceCompletedAt: captureSet.service_completed_at || null,
+      serviceCompletedBy: captureSet.service_completed_by || null,
+      serviceCompletedByLabel: captureSet.service_completed_by_label || "",
       updatedAt: captureSet.updated_at || captureSet.created_at,
       serviceItemLookup: lookups.serviceItemLookup,
     };
@@ -779,7 +782,7 @@ export async function fetchCaptureSetsByDate(date) {
 
   const { data: sets, error: setError } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, updated_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
     .eq("capture_date", date)
     .order("created_at", { ascending: false });
 
@@ -796,7 +799,8 @@ export async function fetchRecentCheckInSets(limit = 24) {
 
   const { data: sets, error } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, updated_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
+    .is("service_completed_at", null)
     .order("updated_at", { ascending: false })
     .limit(limit);
 
@@ -1030,6 +1034,35 @@ export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEn
   };
 }
 
+export async function markCaptureSetServiceCompleted(captureSetId) {
+  const client = assertSupabaseConfigured();
+  const user = await getCurrentUser();
+  const operatorLabel = await getOperatorLabel();
+  const now = new Date().toISOString();
+
+  const { data, error } = await client
+    .from("capture_sets")
+    .update({
+      service_completed_at: now,
+      service_completed_by: user.id,
+      service_completed_by_label: operatorLabel,
+      updated_at: now,
+    })
+    .eq("id", captureSetId)
+    .is("service_completed_at", null)
+    .select("id, reference")
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return data || {
+    id: captureSetId,
+    reference: "",
+  };
+}
+
 export async function createCaptureSet(payload) {
   const captureSet = await createCheckInSet(payload);
   if (payload.accessoryEntries?.length) {
@@ -1054,7 +1087,7 @@ export async function fetchPhotoDetail(photoId) {
 
   const { data: captureSet, error: setError } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label")
     .eq("id", photo.capture_set_id)
     .single();
 
@@ -1100,6 +1133,9 @@ export async function fetchPhotoDetail(photoId) {
       createdAt: captureSet.created_at,
       createdBy: captureSet.created_by || null,
       createdByLabel: captureSet.created_by_label || "",
+      serviceCompletedAt: captureSet.service_completed_at || null,
+      serviceCompletedBy: captureSet.service_completed_by || null,
+      serviceCompletedByLabel: captureSet.service_completed_by_label || "",
       accessoryEntries: captureSetAccessoryIds.map((itemId) => ({
         itemId,
         itemName: lookups.serviceItemLookup.get(itemId)?.name || itemId,
@@ -1213,7 +1249,7 @@ export async function fetchCaptureSetsByActivityDate(dateText) {
 
   const { data: sets, error } = await client
     .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, updated_at")
+    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
     .in("id", setIds)
     .order("updated_at", { ascending: false });
 
