@@ -161,7 +161,7 @@ function renderUploadActions() {
 
 function getPreviewRatio(photo) {
   if (!photo?.width || !photo?.height) {
-    return "4 / 3";
+    return "1 / 1";
   }
   return `${photo.width} / ${photo.height}`;
 }
@@ -440,13 +440,16 @@ async function handleCameraCapture() {
 
   refs.shutterCameraBtn.disabled = true;
   try {
-    refs.cameraCanvas.width = width;
-    refs.cameraCanvas.height = height;
+    const side = Math.min(width, height);
+    const offsetX = Math.floor((width - side) / 2);
+    const offsetY = Math.floor((height - side) / 2);
+    refs.cameraCanvas.width = side;
+    refs.cameraCanvas.height = side;
     const context = refs.cameraCanvas.getContext("2d");
     if (!context) {
       throw new Error("無法建立拍照畫布。");
     }
-    context.drawImage(refs.cameraVideo, 0, 0, width, height);
+    context.drawImage(refs.cameraVideo, offsetX, offsetY, side, side, 0, 0, side, side);
     const blob = await new Promise((resolve, reject) => {
       refs.cameraCanvas.toBlob(
         (result) => (result ? resolve(result) : reject(new Error("拍照失敗。"))),

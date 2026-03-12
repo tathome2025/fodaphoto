@@ -240,43 +240,123 @@ async function rasterizePreviewFromFile(file) {
   }
 }
 
-export async function fileToDraftAsset(file) {
-  const fileName = file.name || `capture-${uid()}.jpg`;
-  const mimeType = file.type || "image/jpeg";
-  const localId = uid();
-  const previewUrl = URL.createObjectURL(file);
+function replaceFileExtension(fileName, extension) {
+  const safeName = (fileName || "").trim() || `capture-${uid()}`;
+  return safeName.replace(/\.[^./\\]+$/, "") + extension;
+}
+
+async function loadImageSource(file) {
+  if (typeof createImageBitmap === "function") {
+    const bitmap = await createImageBitmap(file);
+    return {
+      width: bitmap.width,
+      height: bitmap.height,
+      draw(context, sx, sy, side) {
+        context.drawImage(bitmap, sx, sy, side, side, 0, 0, side, side);
+      },
+      close() {
+        if (typeof bitmap.close === "function") {
+          bitmap.close();
+        }
+      },
+    };
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("無法載入圖片。"));
+      img.src = objectUrl;
+    });
+
+    return {
+      width: image.naturalWidth,
+      height: image.naturalHeight,
+      draw(context, sx, sy, side) {
+        context.drawImage(image, sx, sy, side, side, 0, 0, side, side);
+      },
+      close() {},
+    };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function normalizeImageFileToSquare(file, fileName) {
+  const source = await loadImageSource(file);
 
   try {
-    const dimensions = await readImageSize(previewUrl);
+    const side = Math.min(source.width, source.height);
+    const offsetX = Math.floor((source.width - side) / 2);
+    const offsetY = Math.floor((source.height - side) / 2);
+    const canvas = document.createElement("canvas");
+    canvas.width = side;
+    canvas.height = side;
+    const context = canvas.getContext("2d");
+    if (!context) {
+      throw new Error("無法建立圖片處理 canvas");
+    }
+
+    source.draw(context, offsetX, offsetY, side);
+    const blob = await canvasToBlob(canvas, "image/jpeg", 0.92);
+    const normalizedFileName = replaceFileExtension(fileName, ".jpg");
+    const normalizedFile = typeof File === "function"
+      ? new File([blob], normalizedFileName, {
+        type: "image/jpeg",
+        lastModified: Date.now(),
+      })
+      : Object.assign(blob, { name: normalizedFileName });
+
+    return {
+      file: normalizedFile,
+      fileName: normalizedFileName,
+      mimeType: "image/jpeg",
+      previewUrl: canvas.toDataURL("image/jpeg", 0.92),
+      width: side,
+      height: side,
+    };
+  } finally {
+    source.close();
+  }
+}
+
+export async function fileToDraftAsset(file) {
+  const originalFileName = file.name || `capture-${uid()}.jpg`;
+  const localId = uid();
+
+  try {
+    const normalized = await normalizeImageFileToSquare(file, originalFileName);
     return {
       localId,
-      file,
-      previewUrl,
-      fileName,
-      mimeType,
-      width: dimensions.width,
-      height: dimensions.height,
+      file: normalized.file,
+      previewUrl: normalized.previewUrl,
+      fileName: normalized.fileName,
+      mimeType: normalized.mimeType,
+      width: normalized.width,
+      height: normalized.height,
     };
   } catch (error) {
     try {
       const rendered = await rasterizePreviewFromFile(file);
-      URL.revokeObjectURL(previewUrl);
       return {
         localId,
         file,
         previewUrl: rendered.previewUrl,
-        fileName,
-        mimeType,
+        fileName: originalFileName,
+        mimeType: file.type || "image/jpeg",
         width: rendered.width,
         height: rendered.height,
       };
     } catch (_fallbackError) {
+      const previewUrl = URL.createObjectURL(file);
       return {
         localId,
         file,
         previewUrl,
-        fileName,
-        mimeType,
+        fileName: originalFileName,
+        mimeType: file.type || "image/jpeg",
         width: 0,
         height: 0,
       };
