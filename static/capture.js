@@ -664,6 +664,7 @@ async function handleSubmit(event) {
     resetAccessoryEntries();
     await loadCheckInSets({ keepSelection: true });
     setStatus(`已為案件 ${captureSet.reference} 新增安裝維修保養資料。`, "success");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
