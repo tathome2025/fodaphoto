@@ -775,6 +775,12 @@ button {
   text-align: center;
 }
 
+.home-capture-link {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
 .tiny-button,
 .calendar-nav {
   min-height: 2rem;
@@ -822,10 +828,16 @@ button {
 
 .actionbar-row .primary-button {
   flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 
 .actionbar-row .secondary-button {
   flex: 1 1 auto;
+  display: grid;
+  place-items: center;
+  text-align: center;
 }
 
 .actionbar-row a.secondary-button {
@@ -952,7 +964,11 @@ button {
   margin-top: 0.85rem;
 }
 
+.warning-stripe-button,
 .vehicle-complete-btn {
+  display: grid;
+  place-items: center;
+  text-align: center;
   width: 100%;
   min-height: 3.35rem;
   padding: 0.9rem 1rem;
@@ -980,6 +996,7 @@ button {
   transition: transform 140ms ease, filter 140ms ease, box-shadow 140ms ease;
 }
 
+.warning-stripe-button span,
 .vehicle-complete-btn span {
   display: inline-block;
   padding: 0.2rem 0.48rem;
@@ -992,6 +1009,7 @@ button {
     0 2px 6px rgba(0, 0, 0, 0.24);
 }
 
+.warning-stripe-button:hover,
 .vehicle-complete-btn:hover {
   filter: brightness(1.02) saturate(1.04);
   box-shadow:
@@ -1000,15 +1018,18 @@ button {
     0 16px 28px rgba(0, 0, 0, 0.28);
 }
 
+.warning-stripe-button:active,
 .vehicle-complete-btn:active {
   transform: translateY(1px);
 }
 
+.warning-stripe-button:focus-visible,
 .vehicle-complete-btn:focus-visible {
   outline: 3px solid rgba(245, 191, 24, 0.3);
   outline-offset: 2px;
 }
 
+.warning-stripe-button:disabled,
 .vehicle-complete-btn:disabled {
   cursor: not-allowed;
   opacity: 0.62;
