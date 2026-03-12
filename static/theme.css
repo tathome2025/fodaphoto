@@ -1009,6 +1009,12 @@ button {
     0 2px 6px rgba(0, 0, 0, 0.24);
 }
 
+.warning-stripe-button-darktext,
+.warning-stripe-button-darktext span {
+  color: #111111;
+  text-shadow: none;
+}
+
 .warning-stripe-button:hover,
 .vehicle-complete-btn:hover {
   filter: brightness(1.02) saturate(1.04);
