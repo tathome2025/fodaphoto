@@ -295,6 +295,8 @@ async function loadCheckInSets(options = {}) {
 
   if (previousSelectedId && state.checkInSets.some((captureSet) => captureSet.id === previousSelectedId)) {
     state.selectedCaptureSetId = previousSelectedId;
+  } else if (options.autoSelectFirst === false) {
+    state.selectedCaptureSetId = "";
   } else {
     state.selectedCaptureSetId = state.checkInSets[0]?.id || "";
   }
@@ -662,9 +664,10 @@ async function handleSubmit(event) {
   try {
     const captureSet = await appendServiceEntriesToCaptureSet(state.selectedCaptureSetId, collectPayload());
     resetAccessoryEntries();
-    await loadCheckInSets({ keepSelection: true });
+    state.selectedCaptureSetId = "";
+    await loadCheckInSets({ autoSelectFirst: false });
     setStatus(`已為案件 ${captureSet.reference} 新增安裝維修保養資料。`, "success");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    document.querySelector(".capture-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
