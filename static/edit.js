@@ -145,6 +145,25 @@ function renderFilters() {
   });
 }
 
+function renderDeletedPhotoCard(captureSet) {
+  return `
+    <article class="photo-card photo-card-missing">
+      <div class="empty-state compact photo-missing-state">
+        <strong>相片已刪除</strong>
+        <p class="muted-copy">這組案件資料仍然存在，但原始相片已從圖片庫刪除。</p>
+      </div>
+      <div class="photo-body">
+        <div class="chip-row">
+          <span class="meta-chip">已刪除</span>
+        </div>
+        <strong>${captureSet.reference}</strong>
+        <p>${captureSet.notes || "未填整組備註"}</p>
+      </div>
+      <div class="photo-actions"></div>
+    </article>
+  `;
+}
+
 async function hydrateCards() {
   const cards = [...refs.setList.querySelectorAll("[data-photo-id]")];
   await Promise.all(cards.map(async (card) => {
@@ -196,7 +215,8 @@ async function renderCurrentDate() {
 
   refs.setList.innerHTML = state.captureSets.map((captureSet) => {
     const folderName = buildFolderName(captureSet);
-    const cards = flattenPhotosForSet(captureSet).map(({ photo, kindLabel, itemName, itemNames }) => {
+    const flattenedPhotos = flattenPhotosForSet(captureSet);
+    const cards = flattenedPhotos.map(({ photo, kindLabel, itemName, itemNames }) => {
       const filterName = state.filters.find((filter) => filter.id === photo.savedFilterId)?.name || (photo.savedFilterId ? "已套用 filter" : "未套用 filter");
       const itemChips = (itemNames || [])
         .map((name) => `<span class="meta-chip">${name}</span>`)
@@ -218,7 +238,7 @@ async function renderCurrentDate() {
           </div>
         </article>
       `;
-    }).join("");
+    }).join("") || renderDeletedPhotoCard(captureSet);
 
     return `
       <section class="set-card">

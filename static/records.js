@@ -120,6 +120,15 @@ function renderPhotoCard(photo, label) {
   `;
 }
 
+function renderDeletedPhotoPlaceholder(label = "相片") {
+  return `
+    <div class="empty-state compact photo-missing-state">
+      <strong>${label}已刪除</strong>
+      <p class="muted-copy">資料紀錄仍然保留，但原始相片已不在圖片庫中。</p>
+    </div>
+  `;
+}
+
 async function renderCurrentDate() {
   refs.selectedDateTitle.textContent = formatDateHeading(state.selectedDate);
   refs.selectedDateChip.textContent = state.selectedDate;
@@ -165,7 +174,9 @@ async function renderCurrentDate() {
             </div>
           </div>
           <div class="record-photo-grid">
-            ${(captureSet.vehiclePhotos || []).map((photo) => renderPhotoCard(photo, "車輛照")).join("")}
+            ${(captureSet.vehiclePhotos || []).length
+              ? (captureSet.vehiclePhotos || []).map((photo) => renderPhotoCard(photo, "車輛照")).join("")
+              : renderDeletedPhotoPlaceholder("車輛照")}
           </div>
         </section>
       `
@@ -186,7 +197,9 @@ async function renderCurrentDate() {
           </div>
           <p class="activity-note">${entry.notes || "未填工序備註"}</p>
           <div class="record-photo-grid">
-            ${(entry.photos || []).map((itemPhoto) => renderPhotoCard(itemPhoto, entry.itemLabel || "工序照片")).join("")}
+            ${(entry.photos || []).length
+              ? (entry.photos || []).map((itemPhoto) => renderPhotoCard(itemPhoto, entry.itemLabel || "工序照片")).join("")
+              : renderDeletedPhotoPlaceholder(entry.itemLabel || "工序照片")}
           </div>
         </section>
       `;
