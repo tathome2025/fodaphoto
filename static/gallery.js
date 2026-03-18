@@ -142,9 +142,14 @@ function renderGallery() {
         </div>
         <div class="gallery-date-actions">
           <span class="filter-chip">${group.dateKey}</span>
-          <button class="secondary-button" type="button" data-select-date="${group.dateKey}">全選當日</button>
-          <button class="secondary-button" type="button" data-clear-date="${group.dateKey}">清除當日</button>
-          <button class="secondary-button gallery-delete-btn" type="button" data-delete-date="${group.dateKey}">刪除當日已選</button>
+          <label class="gallery-date-select">
+            <input
+              type="checkbox"
+              data-select-date="${group.dateKey}"
+              ${group.photos.every((photo) => state.selectedPhotoIds.has(photo.id)) ? "checked" : ""}
+            >
+            <span>全選當日</span>
+          </label>
         </div>
       </div>
       <div class="gallery-date-divider"></div>
@@ -301,28 +306,6 @@ async function openLightbox(photoId) {
 
 function bindEvents() {
   refs.galleryDateList.addEventListener("click", async (event) => {
-    const selectDateButton = event.target.closest("[data-select-date]");
-    if (selectDateButton) {
-      syncSelectionForDate(selectDateButton.dataset.selectDate, true);
-      return;
-    }
-
-    const clearDateButton = event.target.closest("[data-clear-date]");
-    if (clearDateButton) {
-      syncSelectionForDate(clearDateButton.dataset.clearDate, false);
-      return;
-    }
-
-    const deleteDateButton = event.target.closest("[data-delete-date]");
-    if (deleteDateButton) {
-      const dateKey = deleteDateButton.dataset.deleteDate;
-      const ids = getPhotosForDate(dateKey)
-        .map((photo) => photo.id)
-        .filter((photoId) => state.selectedPhotoIds.has(photoId));
-      await deletePhotosByIds(ids);
-      return;
-    }
-
     const button = event.target.closest("[data-photo-id]");
     if (!button) {
       return;
@@ -331,6 +314,12 @@ function bindEvents() {
   });
 
   refs.galleryDateList.addEventListener("change", (event) => {
+    const dateCheckbox = event.target.closest("[data-select-date]");
+    if (dateCheckbox) {
+      syncSelectionForDate(dateCheckbox.dataset.selectDate, dateCheckbox.checked);
+      return;
+    }
+
     const checkbox = event.target.closest("[data-select-photo]");
     if (!checkbox) {
       return;

@@ -1203,6 +1203,21 @@ button {
   gap: 0.55rem;
 }
 
+.gallery-date-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  background: rgba(14, 16, 19, 0.84);
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.gallery-date-select input {
+  margin: 0;
+}
+
 .gallery-date-head h2 {
   margin: 0;
   font-size: clamp(1.35rem, 2vw, 1.85rem);
@@ -1303,9 +1318,6 @@ button {
   font-size: 0.82rem;
 }
 
-.gallery-delete-btn {
-  border-color: rgba(255, 122, 122, 0.32);
-}
 
 .gallery-lightbox {
   position: fixed;
