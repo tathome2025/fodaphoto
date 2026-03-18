@@ -1122,7 +1122,7 @@ export async function createCheckInSet(payload) {
   };
 }
 
-export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEntries) {
+export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEntries, options = {}) {
   const client = assertSupabaseConfigured();
   const user = await getCurrentUser();
   const operatorLabel = await getOperatorLabel();
@@ -1143,6 +1143,7 @@ export async function appendServiceEntriesToCaptureSet(captureSetId, accessoryEn
     userId: user.id,
     operatorLabel,
     accessoryEntries: accessoryEntries || [],
+    orderSheetPhotos: options.orderSheetPhotos || [],
   });
   await touchCaptureSet(captureSetId);
 

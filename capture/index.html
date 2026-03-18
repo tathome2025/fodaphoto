@@ -34,6 +34,21 @@
         </div>
 
         <div class="vehicle-selector-grid" id="checkInVehicleList"></div>
+
+        <section class="order-sheet-section" id="orderSheetSection" hidden>
+          <div class="section-head">
+            <div>
+              <h3>Order Sheet 工作單</h3>
+              <p class="muted-copy">可查看目前版本，並即場拍攝最新版本更新。</p>
+            </div>
+          </div>
+          <div class="order-sheet-meta" id="orderSheetMeta"></div>
+          <div class="record-photo-grid order-sheet-preview-grid" id="orderSheetPreviewGrid"></div>
+          <div class="order-sheet-update-actions">
+            <button class="secondary-button" id="updateOrderSheetBtn" type="button">更新 Order Sheet（開啟相機）</button>
+            <button class="tiny-button" id="clearOrderSheetDraftBtn" type="button" hidden>取消待更新</button>
+          </div>
+        </section>
       </section>
 
       <section class="capture-card">

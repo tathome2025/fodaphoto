@@ -6,6 +6,7 @@ import {
   fetchRecentCheckInSets,
   fetchServiceItems,
   fileToDraftAsset,
+  formatDateTime,
   getSignedPhotoUrl,
   PHOTO_MISSING_PLACEHOLDER_URL,
   revokeDraftAsset,
@@ -28,6 +29,11 @@ const refs = {
   closeCameraBtn: document.querySelector("#closeCameraBtn"),
   cancelCameraBtn: document.querySelector("#cancelCameraBtn"),
   shutterCameraBtn: document.querySelector("#shutterCameraBtn"),
+  orderSheetSection: document.querySelector("#orderSheetSection"),
+  orderSheetMeta: document.querySelector("#orderSheetMeta"),
+  orderSheetPreviewGrid: document.querySelector("#orderSheetPreviewGrid"),
+  updateOrderSheetBtn: document.querySelector("#updateOrderSheetBtn"),
+  clearOrderSheetDraftBtn: document.querySelector("#clearOrderSheetDraftBtn"),
   currentUserEmail: document.querySelector("#currentUserEmail"),
 };
 
@@ -37,6 +43,9 @@ const state = {
   checkInSets: [],
   selectedCaptureSetId: "",
   vehicleThumbUrls: new Map(),
+  orderSheetThumbUrls: new Map(),
+  pendingOrderSheetPhoto: null,
+  pendingOrderSheetCapturedAt: "",
   cameraTarget: null,
   cameraStream: null,
 };
@@ -135,10 +144,11 @@ function flashAddAccessoryButton() {
 }
 
 function hasDraftServiceData() {
-  return state.accessoryEntries.some((entry) =>
-    entry.itemIds.length > 0
-    || entry.photos.length > 0
-  );
+  return Boolean(state.pendingOrderSheetPhoto)
+    || state.accessoryEntries.some((entry) =>
+      entry.itemIds.length > 0
+      || entry.photos.length > 0
+    );
 }
 
 function clearAccessoryAssets() {
@@ -147,8 +157,29 @@ function clearAccessoryAssets() {
   });
 }
 
+function clearPendingOrderSheetPhoto() {
+  if (state.pendingOrderSheetPhoto) {
+    revokeDraftAsset(state.pendingOrderSheetPhoto);
+  }
+  state.pendingOrderSheetPhoto = null;
+  state.pendingOrderSheetCapturedAt = "";
+}
+
+function getSelectedCaptureSet() {
+  return state.checkInSets.find((captureSet) => captureSet.id === state.selectedCaptureSetId) || null;
+}
+
+function getLatestOrderSheetPhoto(captureSet) {
+  const photos = captureSet?.orderSheetPhotos || [];
+  if (!photos.length) {
+    return null;
+  }
+  return [...photos].sort((left, right) => `${right.createdAt || ""}`.localeCompare(`${left.createdAt || ""}`))[0];
+}
+
 function resetAccessoryEntries() {
   clearAccessoryAssets();
+  clearPendingOrderSheetPhoto();
   state.accessoryEntries = [createAccessoryEntry()];
   renderAccessoryList();
   renderCheckInVehicleList();
@@ -162,11 +193,13 @@ function renderCheckInVehicleList() {
         <p class="muted-copy">請先到 Check-in 頁建立車輛資料，然後再回來拍安裝維修保養相片。</p>
       </div>
     `;
+    renderOrderSheetPanel();
     return;
   }
 
   if (state.selectedCaptureSetId && hasDraftServiceData()) {
     refs.checkInVehicleList.innerHTML = "";
+    renderOrderSheetPanel();
     return;
   }
 
@@ -210,6 +243,92 @@ function renderCheckInVehicleList() {
       renderCheckInVehicleList();
     });
   });
+
+  renderOrderSheetPanel();
+}
+
+async function hydrateOrderSheetPreviews() {
+  const cards = [...refs.orderSheetPreviewGrid.querySelectorAll("[data-order-sheet-path]")];
+  await Promise.all(cards.map(async (card) => {
+    const image = card.querySelector("img");
+    if (!image) {
+      return;
+    }
+    const photoId = card.dataset.orderSheetPhotoId || "";
+    if (photoId && state.orderSheetThumbUrls.has(photoId)) {
+      image.src = state.orderSheetThumbUrls.get(photoId);
+      return;
+    }
+    try {
+      const signed = await getSignedPhotoUrl(card.dataset.orderSheetPath, {
+        width: 720,
+        height: 540,
+      });
+      if (photoId) {
+        state.orderSheetThumbUrls.set(photoId, signed);
+      }
+      image.src = signed;
+    } catch (error) {
+      image.src = shouldUseMissingPhotoPlaceholder(error)
+        ? PHOTO_MISSING_PLACEHOLDER_URL
+        : "";
+    }
+  }));
+}
+
+function renderOrderSheetPanel() {
+  const selectedSet = getSelectedCaptureSet();
+  if (!selectedSet) {
+    refs.orderSheetSection.hidden = true;
+    refs.updateOrderSheetBtn.disabled = true;
+    refs.orderSheetMeta.innerHTML = "";
+    refs.orderSheetPreviewGrid.innerHTML = "";
+    refs.clearOrderSheetDraftBtn.hidden = true;
+    return;
+  }
+
+  refs.orderSheetSection.hidden = false;
+  refs.updateOrderSheetBtn.disabled = false;
+  const latest = getLatestOrderSheetPhoto(selectedSet);
+  const latestMeta = latest
+    ? `目前版本：${formatDateTime(latest.createdAt)} · ${latest.createdByLabel || "未記錄"}`
+    : "目前版本：未有 Order Sheet";
+  const pendingMeta = state.pendingOrderSheetPhoto
+    ? `待更新版本：${formatDateTime(state.pendingOrderSheetCapturedAt || new Date().toISOString())} · ${refs.currentUserEmail?.textContent || "目前帳號"}`
+    : "";
+
+  refs.orderSheetMeta.innerHTML = `
+    <p class="order-sheet-state-line is-current">${latestMeta}</p>
+    ${pendingMeta ? `<p class="order-sheet-state-line is-pending">${pendingMeta}</p>` : ""}
+  `;
+
+  refs.orderSheetPreviewGrid.innerHTML = `
+    <article class="record-photo-card">
+      <div class="record-photo-frame">
+        ${latest
+          ? `<div data-order-sheet-path="${latest.storagePath}" data-order-sheet-photo-id="${latest.id}"><img alt="目前 Order Sheet"></div>`
+          : `<img src="${PHOTO_MISSING_PLACEHOLDER_URL}" alt="未有 Order Sheet">`}
+      </div>
+      <div class="record-photo-caption">
+        <strong>目前版本</strong>
+        <span>${latest ? latest.fileName : "未有資料"}</span>
+      </div>
+    </article>
+    ${state.pendingOrderSheetPhoto ? `
+      <article class="record-photo-card">
+        <div class="record-photo-frame">
+          <img src="${state.pendingOrderSheetPhoto.previewUrl}" alt="待更新 Order Sheet">
+        </div>
+        <div class="record-photo-caption">
+          <strong>待更新（按完成後上傳）</strong>
+          <span>${state.pendingOrderSheetPhoto.fileName}</span>
+        </div>
+      </article>
+    ` : ""}
+  `;
+
+  refs.clearOrderSheetDraftBtn.hidden = !state.pendingOrderSheetPhoto;
+  hydrateOrderSheetPreviews();
 }
 
 async function hydrateVehicleThumbs() {
@@ -443,6 +562,19 @@ async function applyAccessoryFile(entry, file) {
   setStatus("已加入項目相片。", "success");
 }
 
+async function applyOrderSheetUpdateFile(file) {
+  if (!file) {
+    return;
+  }
+
+  setStatus("處理 Order Sheet 更新相片中...", "");
+  clearPendingOrderSheetPhoto();
+  state.pendingOrderSheetPhoto = await fileToDraftAsset(file);
+  state.pendingOrderSheetCapturedAt = new Date().toISOString();
+  renderOrderSheetPanel();
+  setStatus("已加入 Order Sheet 更新草稿，按「完成」後會上傳。", "success");
+}
+
 async function requestCameraStream() {
   try {
     return await navigator.mediaDevices.getUserMedia({
@@ -477,7 +609,9 @@ async function openCameraOverlay(target) {
     return;
   }
 
-  refs.cameraTitle.textContent = "拍安裝 / 維修 / 保養相片";
+  refs.cameraTitle.textContent = target?.kind === "orderSheet"
+    ? "拍最新 Order Sheet 工作單"
+    : "拍安裝 / 維修 / 保養相片";
   state.cameraTarget = target;
   refs.cameraOverlay.hidden = false;
   document.body.classList.add("camera-open");
@@ -496,13 +630,15 @@ async function openCameraOverlay(target) {
 
 function buildCapturedFile(blob) {
   const stamp = Date.now();
+  const target = state.cameraTarget;
+  const prefix = target?.kind === "orderSheet" ? "order-sheet-update" : "service";
   if (typeof File === "function") {
-    return new File([blob], `service-${stamp}.jpg`, {
+    return new File([blob], `${prefix}-${stamp}.jpg`, {
       type: "image/jpeg",
       lastModified: stamp,
     });
   }
-  blob.name = `service-${stamp}.jpg`;
+  blob.name = `${prefix}-${stamp}.jpg`;
   return blob;
 }
 
@@ -540,6 +676,10 @@ async function handleCameraCapture() {
     });
     const file = buildCapturedFile(blob);
     await closeCameraOverlay();
+    if (target.kind === "orderSheet") {
+      await applyOrderSheetUpdateFile(file);
+      return;
+    }
     const entry = state.accessoryEntries.find((record) => record.id === target.entryId);
     if (!entry) {
       setStatus("找不到目前項目，請重新拍照。", "danger");
@@ -557,10 +697,12 @@ function validateBeforeSave() {
   if (!state.selectedCaptureSetId) {
     return "請先選擇已 Check-in 車輛。";
   }
-  if (!state.accessoryEntries.length) {
-    return "請至少加入 1 個安裝、維修或保養項目。";
+  const hasOrderSheetUpdate = Boolean(state.pendingOrderSheetPhoto);
+  const activeEntries = state.accessoryEntries.filter((entry) => entry.itemIds.length > 0 || entry.photos.length > 0);
+  if (!activeEntries.length && !hasOrderSheetUpdate) {
+    return "請至少新增一個安裝維修保養項目，或更新 Order Sheet。";
   }
-  const invalidEntry = state.accessoryEntries.find((entry) => !entry.itemIds.length || !entry.photos.length);
+  const invalidEntry = activeEntries.find((entry) => !entry.itemIds.length || !entry.photos.length);
   if (invalidEntry) {
     return "每個項目都需要至少選 1 項分類並上傳 1 張相片。";
   }
@@ -568,11 +710,13 @@ function validateBeforeSave() {
 }
 
 function collectPayload() {
-  return state.accessoryEntries.map((entry) => ({
+  return state.accessoryEntries
+    .filter((entry) => entry.itemIds.length > 0 || entry.photos.length > 0)
+    .map((entry) => ({
     itemIds: [...entry.itemIds],
     notes: "",
     photos: entry.photos,
-  }));
+    }));
 }
 
 async function handleCreateServiceItem() {
@@ -613,11 +757,23 @@ async function handleSubmit(event) {
   setStatus("正在上傳安裝維修保養資料...", "");
 
   try {
-    const captureSet = await appendServiceEntriesToCaptureSet(state.selectedCaptureSetId, collectPayload());
+    const hasOrderSheetUpdate = Boolean(state.pendingOrderSheetPhoto);
+    const captureSet = await appendServiceEntriesToCaptureSet(
+      state.selectedCaptureSetId,
+      collectPayload(),
+      {
+        orderSheetPhotos: hasOrderSheetUpdate ? [state.pendingOrderSheetPhoto] : [],
+      }
+    );
     resetAccessoryEntries();
     state.selectedCaptureSetId = "";
     await loadCheckInSets({ autoSelectFirst: false });
-    setStatus(`已為案件 ${captureSet.reference} 新增安裝維修保養資料。`, "success");
+    setStatus(
+      hasOrderSheetUpdate
+        ? `已為案件 ${captureSet.reference} 新增資料並更新最新 Order Sheet。`
+        : `已為案件 ${captureSet.reference} 新增安裝維修保養資料。`,
+      "success"
+    );
     document.querySelector(".capture-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
@@ -627,6 +783,20 @@ async function handleSubmit(event) {
 }
 
 function bindEvents() {
+  refs.updateOrderSheetBtn.addEventListener("click", async () => {
+    if (!state.selectedCaptureSetId) {
+      setStatus("請先選擇已 Check-in 車輛。", "danger");
+      return;
+    }
+    await openCameraOverlay({ kind: "orderSheet" });
+  });
+
+  refs.clearOrderSheetDraftBtn.addEventListener("click", () => {
+    clearPendingOrderSheetPhoto();
+    renderOrderSheetPanel();
+    setStatus("已取消待更新的 Order Sheet 相片。", "");
+  });
+
   refs.addAccessoryBtn.addEventListener("click", () => {
     state.accessoryEntries.push(createAccessoryEntry());
     renderAccessoryList();
@@ -656,6 +826,7 @@ function bindEvents() {
   window.addEventListener("beforeunload", () => {
     stopCameraStream();
     clearAccessoryAssets();
+    clearPendingOrderSheetPhoto();
   });
 }
 

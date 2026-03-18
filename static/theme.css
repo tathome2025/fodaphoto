@@ -1157,6 +1157,45 @@ button {
   grid-template-columns: 100px minmax(0, 1fr);
 }
 
+.order-sheet-section {
+  margin-top: 0.95rem;
+  padding-top: 0.95rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.14);
+  display: grid;
+  gap: 0.8rem;
+}
+
+.order-sheet-meta {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.order-sheet-state-line {
+  margin: 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.order-sheet-state-line.is-current {
+  color: #9be3ae;
+}
+
+.order-sheet-state-line.is-pending {
+  color: #ffd76b;
+}
+
+.order-sheet-preview-grid {
+  grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
+}
+
+.order-sheet-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
 .records-shell {
   width: min(1440px, calc(100vw - 2rem));
   margin: 0 auto;
