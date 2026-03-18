@@ -6,15 +6,16 @@
   <title>安裝維修保養 | FODA工場流程</title>
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script type="module" crossorigin src="../assets/capture-CpRD4_5i.js"></script>
-  <link rel="modulepreload" crossorigin href="../assets/workbench-ChSf54Qe.js">
-  <link rel="stylesheet" crossorigin href="../assets/workbench-CujIexs7.css">
+  <script type="module" crossorigin src="../assets/capture-BlOkqAtR.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/workbench-BWYZBm2m.js">
+  <link rel="stylesheet" crossorigin href="../assets/workbench-BrU4skf3.css">
 </head>
 <body class="page-capture">
   <header class="topbar">
     <a class="back-link" href="../">← 返回首頁</a>
     <div class="topbar-links">
       <a class="secondary-link" href="../checkin/">前往 Check-in</a>
+      <a class="secondary-link" href="../checkout/">前往 Check out</a>
       <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
     </div>
   </header>
@@ -30,20 +31,17 @@
         <div class="section-head">
           <div>
             <h2>第一步：選擇已 Check-in 車輛</h2>
-            <p>先於 Check-in 建立車輛案件，這裡會顯示最近已 Check-in 的車輛縮圖供用戶分工處理。</p>
           </div>
-          <a class="secondary-link" href="../checkin/">建立新 Check-in</a>
         </div>
 
         <div class="vehicle-selector-grid" id="checkInVehicleList"></div>
-        <div class="selected-vehicle-summary" id="selectedVehicleSummary"></div>
+        <div class="vehicle-complete-row" id="vehicleCompleteRow"></div>
       </section>
 
       <section class="capture-card">
         <div class="section-head">
           <div>
-            <h2>第二步：加入安裝 / 維修 / 保養項目</h2>
-            <p>每個項目可拍一張相片並選擇多個分類，資料會追加到所選車輛案件。</p>
+            <h2>第二步：新增安裝維修保養項目</h2>
           </div>
         </div>
 
@@ -55,7 +53,7 @@
             <input id="customServiceInput" type="text" placeholder="例如：冷氣系統、電池、玻璃鍍膜">
             <button class="secondary-button" id="addServiceItemBtn" type="button">加入項目</button>
           </div>
-          <p class="muted-copy">新項目會寫入 database，之後所有帳號都可直接選用。</p>
+          <p class="muted-copy">新項目會寫入紀錄，所有帳號都可直接選用。</p>
         </div>
       </section>
     </form>
@@ -80,7 +78,7 @@
 
   <footer class="sticky-actionbar">
     <div class="actionbar-row">
-      <button class="secondary-button" id="addAccessoryBtn" type="button">加入更多項目</button>
+      <button class="secondary-button" id="addAccessoryBtn" type="button">新增安裝維修保養項目</button>
       <button class="primary-button" id="saveSetBtn" type="submit" form="captureForm">完成</button>
     </div>
     <p class="status-text" id="captureStatus">請先選擇已 Check-in 車輛，再為該車加入安裝、維修或保養資料。</p>

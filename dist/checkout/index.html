@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check out | FODA工場流程</title>
+  <script src="../static/runtime-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" crossorigin src="../assets/checkout-xSPOulrZ.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/workbench-BWYZBm2m.js">
+  <link rel="stylesheet" crossorigin href="../assets/workbench-BrU4skf3.css">
+</head>
+<body class="page-capture">
+  <header class="topbar">
+    <a class="back-link" href="../">← 返回首頁</a>
+    <div class="topbar-links">
+      <a class="secondary-link" href="../capture/">返回安裝維修保養</a>
+      <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
+    </div>
+  </header>
+
+  <main class="capture-shell">
+    <section class="capture-hero">
+      <p class="eyebrow">FODA Workflow</p>
+      <h1>Check out</h1>
+    </section>
+
+    <section class="capture-card">
+      <div class="section-head">
+        <div>
+          <h2>選擇已 Check-in 車輛</h2>
+          <p>選擇車輛後按下 Check out，即表示該車已完成所有安裝維修保養，之後不再出現在安裝維修保養及 Check out 頁。</p>
+        </div>
+      </div>
+
+      <div class="vehicle-selector-grid" id="checkoutVehicleList"></div>
+    </section>
+  </main>
+
+  <footer class="sticky-actionbar">
+    <div class="vehicle-complete-row">
+      <button class="vehicle-complete-btn warning-stripe-button-darktext" id="checkoutBtn" type="button" disabled>
+        <span>Check out</span>
+      </button>
+    </div>
+    <p class="status-text" id="checkoutStatus">請先選擇一台已 Check-in 車輛。</p>
+  </footer>
+</body>
+</html>
