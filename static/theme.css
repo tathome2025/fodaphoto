@@ -1383,6 +1383,16 @@ button {
   background: rgba(255, 255, 255, 0.03);
 }
 
+.record-toggle-row {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.record-toggle-button {
+  min-height: 2.25rem;
+  padding: 0.4rem 1rem;
+}
+
 .activity-stack,
 .activity-block,
 .record-photo-grid {

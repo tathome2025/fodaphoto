@@ -33,6 +33,15 @@ const refs = {
   nextMonthBtn: document.querySelector("#nextMonthBtn"),
 };
 
+function updateRecordToggle(button, panel, expanded) {
+  if (!button || !panel) {
+    return;
+  }
+  panel.hidden = !expanded;
+  button.setAttribute("aria-expanded", expanded ? "true" : "false");
+  button.textContent = expanded ? "收起詳細資料" : "查看詳細資料";
+}
+
 function syncCurrentUser(user) {
   if (refs.currentUserEmail) {
     refs.currentUserEmail.textContent = user?.email || user?.phone || user?.id || "-";
@@ -109,6 +118,17 @@ async function hydratePhotoCards() {
       card.querySelector(".record-photo-caption")?.replaceChildren(document.createTextNode(describeSupabaseError(error)));
     }
   }));
+}
+
+function bindRecordToggles() {
+  refs.recordList.querySelectorAll("[data-record-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const card = button.closest("[data-capture-set-id]");
+      const panel = card?.querySelector("[data-record-details]");
+      const expanded = button.getAttribute("aria-expanded") !== "true";
+      updateRecordToggle(button, panel, expanded);
+    });
+  });
 }
 
 function renderPhotoCard(photo, label) {
@@ -217,7 +237,7 @@ async function renderCurrentDate() {
     }).join("");
 
     return `
-      <article class="record-vehicle-card">
+      <article class="record-vehicle-card" data-capture-set-id="${captureSet.id}">
         <div class="set-head">
           <div>
             <h2>${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""} · ${captureSet.reference}</h2>
@@ -228,7 +248,10 @@ async function renderCurrentDate() {
             <span class="meta-chip">${captureSet.captureDate}</span>
           </div>
         </div>
-        <div class="activity-stack">
+        <div class="record-toggle-row">
+          <button class="tiny-button record-toggle-button" type="button" data-record-toggle aria-expanded="false">查看詳細資料</button>
+        </div>
+        <div class="activity-stack" data-record-details hidden>
           ${checkInBlock}
           ${serviceBlocks || `
             <div class="empty-state compact">
@@ -241,6 +264,7 @@ async function renderCurrentDate() {
     `;
   }).join("");
 
+  bindRecordToggles();
   await hydratePhotoCards();
   setStatus("已載入當日處理紀錄。", "success");
 }
