@@ -97,8 +97,8 @@ function renderUploadActions(entryId = "") {
 
   return `
     <div class="upload-action-row">
-      <button class="primary-button upload-action-btn" type="button" data-open-entry-camera="${entryId}">拍照</button>
-      <button class="secondary-button upload-action-btn" type="button" data-open-entry-library="${entryId}">上傳相片</button>
+      <button class="primary-button upload-action-btn" type="button" data-open-entry-camera="${entryId}">拍照（開啟相機）</button>
+      <button class="secondary-button upload-action-btn" type="button" data-open-entry-library="${entryId}">上傳相片（從相簿）</button>
     </div>
   `;
 }
