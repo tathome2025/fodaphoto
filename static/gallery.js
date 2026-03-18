@@ -1,6 +1,7 @@
 import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   dateKeyFromTimestamp,
+  deleteLibraryPhotos,
   describeSupabaseError,
   fetchAllLibraryPhotos,
   formatDateHeading,
@@ -11,6 +12,7 @@ import {
 const state = {
   photos: [],
   groups: [],
+  selectedPhotoIds: new Set(),
 };
 
 let thumbnailObserver = null;
@@ -19,6 +21,8 @@ const refs = {
   currentUserEmail: document.querySelector("#currentUserEmail"),
   galleryMeta: document.querySelector("#galleryMeta"),
   galleryCountChip: document.querySelector("#galleryCountChip"),
+  gallerySelectedChip: document.querySelector("#gallerySelectedChip"),
+  deleteSelectedBtn: document.querySelector("#deleteSelectedBtn"),
   galleryStatus: document.querySelector("#galleryStatus"),
   galleryDateList: document.querySelector("#galleryDateList"),
   galleryLightbox: document.querySelector("#galleryLightbox"),
@@ -40,6 +44,20 @@ function setStatus(message, type) {
   refs.galleryStatus.className = "status-text";
   if (type) {
     refs.galleryStatus.classList.add(`is-${type}`);
+  }
+}
+
+function selectedCount() {
+  return state.selectedPhotoIds.size;
+}
+
+function syncSelectionSummary() {
+  const count = selectedCount();
+  if (refs.gallerySelectedChip) {
+    refs.gallerySelectedChip.textContent = count ? `已選 ${count} 張` : "未選取相片";
+  }
+  if (refs.deleteSelectedBtn) {
+    refs.deleteSelectedBtn.disabled = count === 0;
   }
 }
 
@@ -75,8 +93,13 @@ function groupPhotosByDate(photos) {
 
 function renderGalleryCard(photo) {
   const captureReference = photo.captureSet?.reference || "未關聯案件";
+  const checked = state.selectedPhotoIds.has(photo.id);
   return `
-    <article class="gallery-photo-card">
+    <article class="gallery-photo-card ${checked ? "is-selected" : ""}">
+      <label class="gallery-photo-select">
+        <input type="checkbox" data-select-photo="${photo.id}" ${checked ? "checked" : ""}>
+        <span>選取</span>
+      </label>
       <button class="gallery-photo-button" type="button" data-photo-id="${photo.id}" aria-label="查看 ${photo.fileName}">
         <div class="gallery-photo-frame" data-photo-path="${photo.storagePath}">
           <img alt="${photo.fileName}">
@@ -94,6 +117,7 @@ function renderGalleryCard(photo) {
 
 function renderGallery() {
   refs.galleryCountChip.textContent = `${state.photos.length} 張相片`;
+  syncSelectionSummary();
   refs.galleryMeta.textContent = state.photos.length
     ? `全部相片按上傳日期分段，最新日期與最新相片排在最上方。現時共有 ${state.groups.length} 個上傳日期分組。`
     : "目前未有任何相片紀錄。";
@@ -116,7 +140,12 @@ function renderGallery() {
           <h2>${formatDateHeading(group.dateKey)}</h2>
           <p class="muted-copy">${group.photos.length} 張相片</p>
         </div>
-        <span class="filter-chip">${group.dateKey}</span>
+        <div class="gallery-date-actions">
+          <span class="filter-chip">${group.dateKey}</span>
+          <button class="secondary-button" type="button" data-select-date="${group.dateKey}">全選當日</button>
+          <button class="secondary-button" type="button" data-clear-date="${group.dateKey}">清除當日</button>
+          <button class="secondary-button gallery-delete-btn" type="button" data-delete-date="${group.dateKey}">刪除當日已選</button>
+        </div>
       </div>
       <div class="gallery-date-divider"></div>
       <div class="gallery-photo-grid">
@@ -124,6 +153,59 @@ function renderGallery() {
       </div>
     </section>
   `).join("");
+}
+
+function getPhotosForDate(dateKey) {
+  return state.groups.find((group) => group.dateKey === dateKey)?.photos || [];
+}
+
+function syncSelectionForDate(dateKey, shouldSelect) {
+  getPhotosForDate(dateKey).forEach((photo) => {
+    if (shouldSelect) {
+      state.selectedPhotoIds.add(photo.id);
+      return;
+    }
+    state.selectedPhotoIds.delete(photo.id);
+  });
+  renderGallery();
+  void hydrateThumbnails();
+}
+
+async function deletePhotosByIds(photoIds) {
+  const targets = state.photos.filter((photo) => photoIds.includes(photo.id));
+  if (!targets.length) {
+    setStatus("請先選取相片。", "danger");
+    return;
+  }
+
+  const count = targets.length;
+  const confirmText = count === 1
+    ? "確定刪除這 1 張相片？刪除後不可還原。"
+    : `確定刪除這 ${count} 張相片？刪除後不可還原。`;
+
+  if (!window.confirm(confirmText)) {
+    return;
+  }
+
+  if (refs.deleteSelectedBtn) {
+    refs.deleteSelectedBtn.disabled = true;
+  }
+  setStatus(`正在刪除 ${count} 張相片...`, "");
+
+  try {
+    const deletedCount = await deleteLibraryPhotos(targets);
+    const deletedIdSet = new Set(targets.map((photo) => photo.id));
+    state.photos = state.photos.filter((photo) => !deletedIdSet.has(photo.id));
+    deletedIdSet.forEach((photoId) => state.selectedPhotoIds.delete(photoId));
+    state.groups = groupPhotosByDate(state.photos);
+    renderGallery();
+    await hydrateThumbnails();
+    closeLightbox();
+    setStatus(`已刪除 ${deletedCount} 張相片。`, "success");
+  } catch (error) {
+    syncSelectionSummary();
+    setStatus(describeSupabaseError(error), "danger");
+  }
 }
 
 async function hydrateThumbnails() {
@@ -219,11 +301,48 @@ async function openLightbox(photoId) {
 
 function bindEvents() {
   refs.galleryDateList.addEventListener("click", async (event) => {
+    const selectDateButton = event.target.closest("[data-select-date]");
+    if (selectDateButton) {
+      syncSelectionForDate(selectDateButton.dataset.selectDate, true);
+      return;
+    }
+
+    const clearDateButton = event.target.closest("[data-clear-date]");
+    if (clearDateButton) {
+      syncSelectionForDate(clearDateButton.dataset.clearDate, false);
+      return;
+    }
+
+    const deleteDateButton = event.target.closest("[data-delete-date]");
+    if (deleteDateButton) {
+      const dateKey = deleteDateButton.dataset.deleteDate;
+      const ids = getPhotosForDate(dateKey)
+        .map((photo) => photo.id)
+        .filter((photoId) => state.selectedPhotoIds.has(photoId));
+      await deletePhotosByIds(ids);
+      return;
+    }
+
     const button = event.target.closest("[data-photo-id]");
     if (!button) {
       return;
     }
     await openLightbox(button.dataset.photoId);
+  });
+
+  refs.galleryDateList.addEventListener("change", (event) => {
+    const checkbox = event.target.closest("[data-select-photo]");
+    if (!checkbox) {
+      return;
+    }
+
+    if (checkbox.checked) {
+      state.selectedPhotoIds.add(checkbox.dataset.selectPhoto);
+    } else {
+      state.selectedPhotoIds.delete(checkbox.dataset.selectPhoto);
+    }
+    syncSelectionSummary();
+    checkbox.closest(".gallery-photo-card")?.classList.toggle("is-selected", checkbox.checked);
   });
 
   refs.galleryLightboxClose.addEventListener("click", closeLightbox);
@@ -236,6 +355,9 @@ function bindEvents() {
     if (event.key === "Escape" && !refs.galleryLightbox.hidden) {
       closeLightbox();
     }
+  });
+  refs.deleteSelectedBtn.addEventListener("click", async () => {
+    await deletePhotosByIds([...state.selectedPhotoIds]);
   });
 }
 

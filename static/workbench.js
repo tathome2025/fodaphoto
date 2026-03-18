@@ -1445,6 +1445,45 @@ export async function fetchAllLibraryPhotos() {
   });
 }
 
+export async function deleteLibraryPhotos(photos) {
+  const client = assertSupabaseConfigured();
+  const photoIds = [...new Set((photos || []).map((photo) => photo?.id).filter(Boolean))];
+  const storagePaths = [...new Set((photos || []).map((photo) => photo?.storagePath).filter(Boolean))];
+
+  if (!photoIds.length) {
+    return 0;
+  }
+
+  const { error: deleteError } = await client
+    .from("photos")
+    .delete()
+    .in("id", photoIds);
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  if (storagePaths.length) {
+    const { error: storageError } = await client.storage
+      .from(appConfig.storageBucket)
+      .remove(storagePaths);
+
+    if (storageError) {
+      throw storageError;
+    }
+
+    storagePaths.forEach((path) => {
+      for (const key of signedUrlCache.keys()) {
+        if (key.startsWith(`${path}:`)) {
+          signedUrlCache.delete(key);
+        }
+      }
+    });
+  }
+
+  return photoIds.length;
+}
+
 export async function upsertCurrentPhotoEdit(photoId, adjustments, filterId = null) {
   const client = assertSupabaseConfigured();
   const user = await getCurrentUser();
