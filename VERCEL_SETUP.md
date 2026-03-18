@@ -21,7 +21,7 @@
 
 - Build Command：`npm run build:vercel`
 - Output Directory：`dist`
-- Node.js Runtime（`api/**/*.js`）：`nodejs20.x`
+- Functions：`api/**/*.js`（runtime 由 Vercel 自動處理）
 
 通常可不用手動再改。
 

@@ -101,7 +101,7 @@ push 到 `main` 後，GitHub Actions 會自動建置並部署 `garage-photo-work
 
 - Build command：`npm run build:vercel`
 - Output directory：`dist`
-- Runtime：Node.js 20（for `api/**/*.js`）
+- Functions：`api/**/*.js`（由 Vercel 自動使用 Node runtime）
 
 部署詳細步驟見：
 
