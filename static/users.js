@@ -41,10 +41,20 @@ async function invokeUserAdmin(action, payload = {}) {
     throw new Error("Supabase 未設定。");
   }
 
-  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  let { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) {
     throw sessionError;
   }
+  if (sessionData.session?.refresh_token) {
+    const refreshed = await supabase.auth.refreshSession({
+      refresh_token: sessionData.session.refresh_token,
+    });
+    if (refreshed.error) {
+      throw refreshed.error;
+    }
+    sessionData = refreshed.data;
+  }
+
   if (!sessionData.session?.access_token) {
     throw new Error("目前登入狀態無效，請先重新登入。");
   }
