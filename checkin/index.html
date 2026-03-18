@@ -59,6 +59,21 @@
           <p class="muted-copy">新品牌會寫入 database，之後所有帳號都可在品牌列表直接使用。</p>
         </div>
       </section>
+
+      <section class="capture-card">
+        <div class="section-head">
+          <div>
+            <h2>第三步：拍攝或上傳 Order Sheet 工作單</h2>
+            <p>完成 Check-in 前加入一張工作單，之後可在紀錄、圖庫和相片 Edit 內查看。</p>
+          </div>
+        </div>
+
+        <label class="upload-zone large" id="orderSheetZone" for="orderSheetInput">
+          <input id="orderSheetInput" type="file" accept="image/*" capture="environment">
+          <div class="upload-zone-content" id="orderSheetPreview"></div>
+        </label>
+        <input class="utility-file-input" id="orderSheetLibraryInput" type="file" accept="image/*">
+      </section>
     </form>
   </main>
 
@@ -113,7 +128,7 @@
     <div class="actionbar-row">
       <button class="primary-button" id="saveCheckInBtn" type="submit" form="checkInForm">完成 Check-in</button>
     </div>
-    <p class="status-text" id="checkInStatus">完成後會建立一組已 Check-in 案件，供後續安裝維修保養頁選車使用。</p>
+    <p class="status-text" id="checkInStatus">完成後會建立一組已 Check-in 案件，包含車輛照與工作單，供後續安裝維修保養頁選車使用。</p>
   </footer>
 </body>
 </html>

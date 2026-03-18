@@ -184,6 +184,11 @@ async function renderCurrentDate() {
               ? (captureSet.vehiclePhotos || []).map((photo) => renderPhotoCard(photo, "車輛照")).join("")
               : renderDeletedPhotoPlaceholder("車輛照")}
           </div>
+          ${(captureSet.orderSheetPhotos || []).length ? `
+            <div class="record-photo-grid">
+              ${(captureSet.orderSheetPhotos || []).map((photo) => renderPhotoCard(photo, "Order Sheet 工作單")).join("")}
+            </div>
+          ` : ""}
         </section>
       `
       : "";

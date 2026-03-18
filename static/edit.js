@@ -326,7 +326,9 @@ async function downloadDayArchive() {
         const itemLabel = (itemNames || []).join("+") || itemName || photo.itemId;
         const fileName = photo.kind === "vehicle"
           ? `vehicle-${index}.${extension}`
-          : `accessory-${sanitizeFileName(itemLabel || `item-${index}`)}-${index}.${extension}`;
+          : (photo.kind === "order_sheet"
+            ? `order-sheet-${index}.${extension}`
+            : `accessory-${sanitizeFileName(itemLabel || `item-${index}`)}-${index}.${extension}`);
         folder.file(fileName, blob);
         index += 1;
       }

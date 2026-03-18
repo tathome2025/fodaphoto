@@ -9,6 +9,18 @@ begin
   end if;
 end $$;
 
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_enum
+    where enumlabel = 'order_sheet'
+      and enumtypid = 'public.photo_kind'::regtype
+  ) then
+    alter type public.photo_kind add value 'order_sheet';
+  end if;
+end $$;
+
 create table if not exists public.brands (
   id text primary key,
   name text not null,
@@ -84,7 +96,10 @@ create table if not exists public.photos (
   taken_at timestamptz,
   created_at timestamptz not null default timezone('utc', now()),
   constraint accessory_requires_service_item
-    check ((kind = 'vehicle' and service_item_id is null) or (kind = 'accessory' and service_item_id is not null))
+    check (
+      ((kind = 'vehicle' or kind = 'order_sheet') and service_item_id is null)
+      or (kind = 'accessory' and service_item_id is not null)
+    )
 );
 
 alter table public.photos
@@ -92,6 +107,16 @@ alter table public.photos
 
 alter table public.photos
   add column if not exists created_by_label text not null default '';
+
+alter table public.photos
+  drop constraint if exists accessory_requires_service_item;
+
+alter table public.photos
+  add constraint accessory_requires_service_item
+  check (
+    ((kind = 'vehicle' or kind = 'order_sheet') and service_item_id is null)
+    or (kind = 'accessory' and service_item_id is not null)
+  );
 
 create table if not exists public.photo_service_items (
   photo_id uuid not null references public.photos(id) on delete cascade,

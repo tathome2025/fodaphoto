@@ -73,6 +73,9 @@ function photoWorkLabel(photo) {
   if (photo.kind === "vehicle") {
     return "Check-in 車輛照";
   }
+  if (photo.kind === "order_sheet") {
+    return "Order Sheet 工作單";
+  }
   return photo.itemLabel || "未分類工序";
 }
 

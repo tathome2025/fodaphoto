@@ -17,6 +17,10 @@ const refs = {
   vehicleLibraryInput: document.querySelector("#vehicleLibraryInput"),
   vehicleZone: document.querySelector("#vehicleZone"),
   vehiclePreview: document.querySelector("#vehiclePreview"),
+  orderSheetInput: document.querySelector("#orderSheetInput"),
+  orderSheetLibraryInput: document.querySelector("#orderSheetLibraryInput"),
+  orderSheetZone: document.querySelector("#orderSheetZone"),
+  orderSheetPreview: document.querySelector("#orderSheetPreview"),
   brandGrid: document.querySelector("#brandGrid"),
   vehicleModelSummary: document.querySelector("#vehicleModelSummary"),
   customBrandInput: document.querySelector("#customBrandInput"),
@@ -45,7 +49,9 @@ const state = {
   brandId: "",
   vehicleModel: "",
   vehiclePhotos: [],
+  orderSheetPhotos: [],
   cameraStream: null,
+  cameraTarget: "vehicle",
   pendingBrandId: "",
   recentModelsByBrand: new Map(),
   loadingRecentBrandId: "",
@@ -140,21 +146,25 @@ function isDirectCameraMode() {
   );
 }
 
-function getVehiclePromptText() {
+function getUploadPromptText(target) {
+  const labels = {
+    vehicle: "車輛照",
+    orderSheet: "Order Sheet 工作單",
+  };
   return isDirectCameraMode()
-    ? "按一下拍車輛照"
-    : "按一下拍照或上傳車輛照";
+    ? `按一下拍${labels[target] || "相片"}`
+    : `按一下拍照或上傳${labels[target] || "相片"}`;
 }
 
-function renderUploadActions() {
+function renderUploadActions(target) {
   if (!isDirectCameraMode()) {
     return "";
   }
 
   return `
     <div class="upload-action-row">
-      <button class="primary-button upload-action-btn" type="button" data-open-vehicle-camera>拍照</button>
-      <button class="secondary-button upload-action-btn" type="button" data-open-vehicle-library>上傳相片</button>
+      <button class="primary-button upload-action-btn" type="button" data-open-camera="${target}">拍照</button>
+      <button class="secondary-button upload-action-btn" type="button" data-open-library="${target}">上傳相片</button>
     </div>
   `;
 }
@@ -166,61 +176,113 @@ function getPreviewRatio(photo) {
   return `${photo.width} / ${photo.height}`;
 }
 
-function renderUploadCover(photo) {
+function renderUploadCover(photo, target) {
+  const altText = target === "orderSheet" ? "Order Sheet 工作單" : "車輛照";
   return `
     <figure class="upload-cover">
       <div class="upload-cover-frame" style="aspect-ratio: ${getPreviewRatio(photo)};">
-        <img src="${photo.previewUrl}" alt="車輛照">
+        <img src="${photo.previewUrl}" alt="${altText}">
       </div>
       <figcaption class="upload-cover-footer">
         <span>${photo.fileName}</span>
-        <button class="tiny-button" type="button" data-remove-vehicle="${photo.localId}">移除</button>
+        <button class="tiny-button" type="button" data-remove-upload="${target}:${photo.localId}">移除</button>
       </figcaption>
     </figure>
   `;
 }
 
-function renderVehiclePreview() {
-  refs.vehicleZone.classList.toggle("has-preview", state.vehiclePhotos.length > 0);
-  refs.vehicleInput.disabled = state.vehiclePhotos.length > 0 || isDirectCameraMode();
+function getUploadTargetState(target) {
+  return target === "orderSheet" ? state.orderSheetPhotos : state.vehiclePhotos;
+}
 
-  if (!state.vehiclePhotos.length) {
-    refs.vehiclePreview.innerHTML = `
+function getUploadTargetRefs(target) {
+  return target === "orderSheet"
+    ? {
+        zone: refs.orderSheetZone,
+        input: refs.orderSheetInput,
+        libraryInput: refs.orderSheetLibraryInput,
+        preview: refs.orderSheetPreview,
+      }
+    : {
+        zone: refs.vehicleZone,
+        input: refs.vehicleInput,
+        libraryInput: refs.vehicleLibraryInput,
+        preview: refs.vehiclePreview,
+      };
+}
+
+function clearUploadTarget(target) {
+  if (target === "orderSheet") {
+    state.orderSheetPhotos.forEach((asset) => revokeDraftAsset(asset));
+    state.orderSheetPhotos = [];
+    refs.orderSheetInput.value = "";
+    refs.orderSheetLibraryInput.value = "";
+    return;
+  }
+
+  state.vehiclePhotos.forEach((asset) => revokeDraftAsset(asset));
+  state.vehiclePhotos = [];
+  refs.vehicleInput.value = "";
+  refs.vehicleLibraryInput.value = "";
+}
+
+function renderUploadTarget(target) {
+  const targetState = getUploadTargetState(target);
+  const targetRefs = getUploadTargetRefs(target);
+  const labels = {
+    vehicle: "車輛照",
+    orderSheet: "Order Sheet 工作單",
+  };
+  targetRefs.zone.classList.toggle("has-preview", targetState.length > 0);
+  targetRefs.input.disabled = targetState.length > 0 || isDirectCameraMode();
+
+  if (!targetState.length) {
+    targetRefs.preview.innerHTML = `
       <div class="upload-prompt">
-        <strong>${getVehiclePromptText()}</strong>
-        <small>只可上傳一張車輛照。</small>
-        ${renderUploadActions()}
+        <strong>${getUploadPromptText(target)}</strong>
+        <small>只可上傳一張${labels[target] || "相片"}。</small>
+        ${renderUploadActions(target)}
       </div>
     `;
 
-    refs.vehiclePreview.querySelector("[data-open-vehicle-camera]")?.addEventListener("click", async (event) => {
+    targetRefs.preview.querySelector("[data-open-camera]")?.addEventListener("click", async (event) => {
       event.preventDefault();
       event.stopPropagation();
-      await openCameraOverlay();
+      await openCameraOverlay(target);
     });
 
-    refs.vehiclePreview.querySelector("[data-open-vehicle-library]")?.addEventListener("click", (event) => {
+    targetRefs.preview.querySelector("[data-open-library]")?.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      refs.vehicleLibraryInput.click();
+      targetRefs.libraryInput.click();
     });
     return;
   }
 
-  refs.vehiclePreview.innerHTML = state.vehiclePhotos.map((photo) => renderUploadCover(photo)).join("");
-  refs.vehiclePreview.querySelectorAll("[data-remove-vehicle]").forEach((button) => {
+  targetRefs.preview.innerHTML = targetState.map((photo) => renderUploadCover(photo, target)).join("");
+  targetRefs.preview.querySelectorAll("[data-remove-upload]").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const index = state.vehiclePhotos.findIndex((photo) => photo.localId === button.dataset.removeVehicle);
+      const [slot, localId] = `${button.dataset.removeUpload || ""}`.split(":");
+      const photos = getUploadTargetState(slot);
+      const index = photos.findIndex((photo) => photo.localId === localId);
       if (index === -1) {
         return;
       }
-      revokeDraftAsset(state.vehiclePhotos[index]);
-      state.vehiclePhotos.splice(index, 1);
-      renderVehiclePreview();
+      revokeDraftAsset(photos[index]);
+      photos.splice(index, 1);
+      renderUploadTarget(slot);
     });
   });
+}
+
+function renderVehiclePreview() {
+  renderUploadTarget("vehicle");
+}
+
+function renderOrderSheetPreview() {
+  renderUploadTarget("orderSheet");
 }
 
 function renderVehicleModelSummary() {
@@ -346,26 +408,39 @@ function renderBrands() {
   renderVehicleModelSummary();
 }
 
-async function applyVehicleFile(file) {
+async function applyUploadFile(target, file) {
   if (!file) {
     return;
   }
 
-  if (state.vehiclePhotos.length > 0) {
-    setStatus("車輛照只可上傳一張，如需更換請先移除。", "danger");
-    refs.vehicleInput.value = "";
+  const targetState = getUploadTargetState(target);
+  const targetRefs = getUploadTargetRefs(target);
+  const labels = {
+    vehicle: "車輛照",
+    orderSheet: "Order Sheet 工作單",
+  };
+
+  if (targetState.length > 0) {
+    setStatus(`${labels[target] || "相片"}只可上傳一張，如需更換請先移除。`, "danger");
+    targetRefs.input.value = "";
     return;
   }
 
   try {
-    setStatus("處理車輛相片中...", "");
-    state.vehiclePhotos = [await fileToDraftAsset(file)];
-    renderVehiclePreview();
-    setStatus("已加入車輛照。", "success");
+    setStatus(`處理${labels[target] || "相片"}中...`, "");
+    const draft = await fileToDraftAsset(file);
+    if (target === "orderSheet") {
+      state.orderSheetPhotos = [draft];
+      renderOrderSheetPreview();
+    } else {
+      state.vehiclePhotos = [draft];
+      renderVehiclePreview();
+    }
+    setStatus(`已加入${labels[target] || "相片"}。`, "success");
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
-    refs.vehicleInput.value = "";
+    targetRefs.input.value = "";
   }
 }
 
@@ -397,12 +472,13 @@ async function closeCameraOverlay() {
   await stopCameraStream();
 }
 
-async function openCameraOverlay() {
+async function openCameraOverlay(target = "vehicle") {
   if (!isDirectCameraMode()) {
     return;
   }
 
-  refs.cameraTitle.textContent = "拍車輛照";
+  state.cameraTarget = target;
+  refs.cameraTitle.textContent = target === "orderSheet" ? "拍 Order Sheet 工作單" : "拍車輛照";
   refs.cameraOverlay.hidden = false;
   document.body.classList.add("camera-open");
   refs.cameraVideo.hidden = false;
@@ -420,13 +496,14 @@ async function openCameraOverlay() {
 
 function buildCapturedFile(blob) {
   const stamp = Date.now();
+  const prefix = state.cameraTarget === "orderSheet" ? "order-sheet" : "vehicle";
   if (typeof File === "function") {
-    return new File([blob], `vehicle-${stamp}.jpg`, {
+    return new File([blob], `${prefix}-${stamp}.jpg`, {
       type: "image/jpeg",
       lastModified: stamp,
     });
   }
-  blob.name = `vehicle-${stamp}.jpg`;
+  blob.name = `${prefix}-${stamp}.jpg`;
   return blob;
 }
 
@@ -458,7 +535,7 @@ async function handleCameraCapture() {
       );
     });
     await closeCameraOverlay();
-    await applyVehicleFile(buildCapturedFile(blob));
+    await applyUploadFile(state.cameraTarget, buildCapturedFile(blob));
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
@@ -473,18 +550,20 @@ function validateBeforeSave() {
   if (!state.brandId || !state.vehicleModel) {
     return "請先選擇品牌並輸入車型。";
   }
+  if (!state.orderSheetPhotos.length) {
+    return "請先加入 Order Sheet 工作單。";
+  }
   return "";
 }
 
 function resetForm() {
-  state.vehiclePhotos.forEach((asset) => revokeDraftAsset(asset));
-  state.vehiclePhotos = [];
+  clearUploadTarget("vehicle");
+  clearUploadTarget("orderSheet");
   state.brandId = "";
   state.vehicleModel = "";
-  refs.vehicleInput.value = "";
-  refs.vehicleLibraryInput.value = "";
   refs.customBrandInput.value = "";
   renderVehiclePreview();
+  renderOrderSheetPreview();
   renderBrands();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
@@ -531,6 +610,7 @@ async function handleSubmit(event) {
       brandId: state.brandId,
       vehicleModel: state.vehicleModel,
       vehiclePhotos: state.vehiclePhotos,
+      orderSheetPhotos: state.orderSheetPhotos,
     });
     resetForm();
     setStatus(`Check-in 完成，案件 ${created.reference} 已建立。`, "success");
@@ -544,15 +624,28 @@ async function handleSubmit(event) {
 function bindEvents() {
   refs.vehicleInput.addEventListener("change", async () => {
     if (refs.vehicleInput.files?.length) {
-      await applyVehicleFile(refs.vehicleInput.files[0]);
+      await applyUploadFile("vehicle", refs.vehicleInput.files[0]);
     }
   });
 
   refs.vehicleLibraryInput.addEventListener("change", async () => {
     if (refs.vehicleLibraryInput.files?.length) {
-      await applyVehicleFile(refs.vehicleLibraryInput.files[0]);
+      await applyUploadFile("vehicle", refs.vehicleLibraryInput.files[0]);
     }
     refs.vehicleLibraryInput.value = "";
+  });
+
+  refs.orderSheetInput.addEventListener("change", async () => {
+    if (refs.orderSheetInput.files?.length) {
+      await applyUploadFile("orderSheet", refs.orderSheetInput.files[0]);
+    }
+  });
+
+  refs.orderSheetLibraryInput.addEventListener("change", async () => {
+    if (refs.orderSheetLibraryInput.files?.length) {
+      await applyUploadFile("orderSheet", refs.orderSheetLibraryInput.files[0]);
+    }
+    refs.orderSheetLibraryInput.value = "";
   });
 
   refs.vehicleZone.addEventListener("click", async (event) => {
@@ -560,7 +653,15 @@ function bindEvents() {
       return;
     }
     event.preventDefault();
-    await openCameraOverlay();
+    await openCameraOverlay("vehicle");
+  });
+
+  refs.orderSheetZone.addEventListener("click", async (event) => {
+    if (!isDirectCameraMode() || event.target.closest("button") || state.orderSheetPhotos.length > 0) {
+      return;
+    }
+    event.preventDefault();
+    await openCameraOverlay("orderSheet");
   });
 
   refs.addBrandBtn.addEventListener("click", handleCreateBrand);
@@ -592,6 +693,7 @@ function bindEvents() {
   window.addEventListener("beforeunload", () => {
     stopCameraStream();
     state.vehiclePhotos.forEach((asset) => revokeDraftAsset(asset));
+    state.orderSheetPhotos.forEach((asset) => revokeDraftAsset(asset));
   });
 }
 
@@ -599,6 +701,7 @@ async function init() {
   const user = await requireAuthorizedPage(["staff", "admin", "superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
   renderVehiclePreview();
+  renderOrderSheetPreview();
   setStatus("正在載入品牌資料...", "");
 
   try {

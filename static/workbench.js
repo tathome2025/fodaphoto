@@ -736,6 +736,7 @@ function normalizeServiceItemsForPhoto(photo, captureSet, photoServiceItemMap) {
 
 function groupPhotos(captureSet, photos, currentEdits, photoServiceItemMap) {
   const vehiclePhotos = [];
+  const orderSheetPhotos = [];
   const accessoryEntries = [];
 
   photos.forEach((photo) => {
@@ -770,6 +771,11 @@ function groupPhotos(captureSet, photos, currentEdits, photoServiceItemMap) {
       return;
     }
 
+    if (normalized.kind === "order_sheet") {
+      orderSheetPhotos.push(normalized);
+      return;
+    }
+
     accessoryEntries.push({
       id: `${captureSet.id}:${photo.id}`,
       itemId: normalized.itemId,
@@ -785,6 +791,7 @@ function groupPhotos(captureSet, photos, currentEdits, photoServiceItemMap) {
   return {
     ...captureSet,
     vehiclePhotos,
+    orderSheetPhotos,
     accessoryEntries,
   };
 }
@@ -806,7 +813,14 @@ export function flattenPhotosForSet(captureSet) {
     }))
   );
 
-  return [...vehiclePhotos, ...accessoryPhotos];
+  const orderSheetPhotos = (captureSet.orderSheetPhotos || []).map((photo) => ({
+    photo,
+    kindLabel: "Order Sheet 工作單",
+    itemName: null,
+    itemNames: [],
+  }));
+
+  return [...vehiclePhotos, ...orderSheetPhotos, ...accessoryPhotos];
 }
 
 async function loadLookups() {
@@ -965,7 +979,7 @@ async function uploadPhotoAsset(userId, captureDate, captureSetId, asset) {
   };
 }
 
-async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, operatorLabel, vehiclePhotos = [], accessoryEntries = [] }) {
+async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, operatorLabel, vehiclePhotos = [], orderSheetPhotos = [], accessoryEntries = [] }) {
   const client = assertSupabaseConfigured();
   const photoRows = [];
   const photoServiceItemRows = [];
@@ -984,6 +998,25 @@ async function insertCaptureSetPhotos({ captureSetId, captureDate, userId, opera
       width: asset.width,
       height: asset.height,
       sort_order: index * 10 + 10,
+      created_by: userId,
+      created_by_label: operatorLabel,
+    });
+  }
+
+  for (const [index, asset] of orderSheetPhotos.entries()) {
+    const upload = await uploadPhotoAsset(userId, captureDate, captureSetId, asset);
+    photoRows.push({
+      id: upload.id,
+      capture_set_id: captureSetId,
+      kind: "order_sheet",
+      service_item_id: null,
+      item_note: "",
+      storage_path: upload.storagePath,
+      original_file_name: asset.fileName,
+      mime_type: asset.mimeType,
+      width: asset.width,
+      height: asset.height,
+      sort_order: index * 10 + 200,
       created_by: userId,
       created_by_label: operatorLabel,
     });
@@ -1078,6 +1111,7 @@ export async function createCheckInSet(payload) {
     userId: user.id,
     operatorLabel,
     vehiclePhotos: payload.vehiclePhotos || [],
+    orderSheetPhotos: payload.orderSheetPhotos || [],
   });
 
   return {
@@ -1427,7 +1461,9 @@ export async function fetchAllLibraryPhotos() {
       id: photo.id,
       captureSetId: photo.capture_set_id,
       kind: photo.kind,
-      kindLabel: photo.kind === "vehicle" ? "車輛照" : "安裝維修保養",
+      kindLabel: photo.kind === "vehicle"
+        ? "車輛照"
+        : (photo.kind === "order_sheet" ? "Order Sheet 工作單" : "安裝維修保養"),
       serviceItemId: serviceItems.primaryItemId,
       serviceItemIds: serviceItems.itemIds,
       itemName: serviceItems.itemNames[0] || serviceItems.primaryItemId || "",

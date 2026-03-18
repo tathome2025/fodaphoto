@@ -73,11 +73,14 @@ function syncMeta() {
     || (detail.photo.itemNames || []).join(" + ")
     || detail.photo.itemName
     || detail.photo.itemId;
+  const kindLabel = detail.photo.kind === "vehicle"
+    ? "車輛照"
+    : (detail.photo.kind === "order_sheet" ? "Order Sheet 工作單" : itemLabel);
   refs.backLink.href = `./?date=${encodeURIComponent(detail.captureSet.captureDate)}`;
   refs.photoTitle.textContent = detail.photo.fileName;
   refs.photoSummary.textContent = `${detail.captureSet.brandName}${detail.captureSet.vehicleModel ? ` ${detail.captureSet.vehicleModel}` : ""} · ${detail.captureSet.reference} · ${detail.captureSet.captureDate}`;
   refs.fileNameMeta.textContent = detail.photo.fileName;
-  refs.kindMeta.textContent = detail.photo.kind === "vehicle" ? "車輛照" : itemLabel;
+  refs.kindMeta.textContent = kindLabel;
   refs.brandMeta.textContent = `${detail.captureSet.brandName}${detail.captureSet.vehicleModel ? ` ${detail.captureSet.vehicleModel}` : ""}`;
   refs.setMeta.textContent = detail.captureSet.reference;
   refs.folderMeta.textContent = buildFolderName(detail.captureSet);
