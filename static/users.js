@@ -2,6 +2,8 @@ import { appConfig } from "./config.js";
 import { requireAuthorizedPage } from "./supabase-browser.js";
 import { describeSupabaseError, supabase } from "./workbench.js";
 
+const USER_ADMIN_CLIENT_VERSION = "20260318-3";
+
 const refs = {
   currentUserEmail: document.querySelector("#currentUserEmail"),
   usersStatus: document.querySelector("#usersStatus"),
@@ -61,14 +63,16 @@ async function invokeUserAdmin(action, payload = {}) {
   });
 
   let data = null;
+  let rawText = "";
   try {
-    data = await response.json();
+    rawText = await response.text();
+    data = rawText ? JSON.parse(rawText) : null;
   } catch (_error) {
     data = null;
   }
 
   if (!response.ok) {
-    throw new Error(data?.error || data?.message || `用戶管理操作失敗（HTTP ${response.status}）。`);
+    throw new Error(data?.error || data?.message || rawText || `用戶管理操作失敗（HTTP ${response.status}）。`);
   }
   if (!data?.ok) {
     throw new Error(data?.error || "用戶管理操作失敗。");
@@ -214,14 +218,14 @@ function bindEvents() {
 async function init() {
   const user = await requireAuthorizedPage(["superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
-  setStatus("正在載入用戶資料...", "");
+  setStatus(`正在載入用戶資料...（client ${USER_ADMIN_CLIENT_VERSION}）`, "");
   bindEvents();
 
   try {
     await loadUsers();
-    setStatus("可管理所有用戶的群組、新增與刪除。", "success");
+    setStatus(`可管理所有用戶的群組、新增與刪除。（client ${USER_ADMIN_CLIENT_VERSION}）`, "success");
   } catch (error) {
-    setStatus(describeSupabaseError(error), "danger");
+    setStatus(`[client ${USER_ADMIN_CLIENT_VERSION}] ${describeSupabaseError(error)}`, "danger");
   }
 }
 
