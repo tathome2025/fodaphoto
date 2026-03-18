@@ -1,9 +1,9 @@
-import{t as g,r as $,d as o,w as M,x as f,y as D,z as l,A as w,B as L,p as C}from"./workbench-DrXLKKbW.js";const t={selectedDate:new URLSearchParams(window.location.search).get("date")||g(),currentMonth:null,uploadMap:{},captureSets:[]},r={currentUserEmail:document.querySelector("#currentUserEmail"),monthLabel:document.querySelector("#monthLabel"),calendarGrid:document.querySelector("#calendarGrid"),selectedDateTitle:document.querySelector("#selectedDateTitle"),selectedDateMeta:document.querySelector("#selectedDateMeta"),selectedDateChip:document.querySelector("#selectedDateChip"),recordsStatus:document.querySelector("#recordsStatus"),recordList:document.querySelector("#recordList"),prevMonthBtn:document.querySelector("#prevMonthBtn"),nextMonthBtn:document.querySelector("#nextMonthBtn")};function S(e){r.currentUserEmail&&(r.currentUserEmail.textContent=e?.email||e?.phone||e?.id||"-")}function s(e,a){r.recordsStatus.textContent=e,r.recordsStatus.className="status-text",a&&r.recordsStatus.classList.add(`is-${a}`)}function b(e){return`${e.length} 台車輛於當日有操作紀錄`}function x(){const e=new URL(window.location.href);e.searchParams.set("date",t.selectedDate),window.history.replaceState({},"",e)}function v(){r.monthLabel.textContent=w(t.currentMonth);const e=L(t.currentMonth.getFullYear(),t.currentMonth.getMonth());r.calendarGrid.innerHTML=e.map(a=>{if(!a)return'<div class="calendar-day is-empty"></div>';const c=`${a.getFullYear()}-${`${a.getMonth()+1}`.padStart(2,"0")}-${`${a.getDate()}`.padStart(2,"0")}`,n=t.uploadMap[c]||0;return`
-      <button class="${["calendar-day",n?"has-data":"",t.selectedDate===c?"is-selected":""].filter(Boolean).join(" ")}" type="button" data-calendar-date="${c}">
+import{t as g,r as M,d as o,x as $,y as f,z as D,A as l,B as L,C as w,p as C,q as S,P as b}from"./workbench-4gzxfYMo.js";const t={selectedDate:new URLSearchParams(window.location.search).get("date")||g(),currentMonth:null,uploadMap:{},captureSets:[]},r={currentUserEmail:document.querySelector("#currentUserEmail"),monthLabel:document.querySelector("#monthLabel"),calendarGrid:document.querySelector("#calendarGrid"),selectedDateTitle:document.querySelector("#selectedDateTitle"),selectedDateMeta:document.querySelector("#selectedDateMeta"),selectedDateChip:document.querySelector("#selectedDateChip"),recordsStatus:document.querySelector("#recordsStatus"),recordList:document.querySelector("#recordList"),prevMonthBtn:document.querySelector("#prevMonthBtn"),nextMonthBtn:document.querySelector("#nextMonthBtn")};function P(e){r.currentUserEmail&&(r.currentUserEmail.textContent=e?.email||e?.phone||e?.id||"-")}function c(e,a){r.recordsStatus.textContent=e,r.recordsStatus.className="status-text",a&&r.recordsStatus.classList.add(`is-${a}`)}function q(e){return`${e.length} 台車輛於當日有操作紀錄`}function x(){const e=new URL(window.location.href);e.searchParams.set("date",t.selectedDate),window.history.replaceState({},"",e)}function v(){r.monthLabel.textContent=L(t.currentMonth);const e=w(t.currentMonth.getFullYear(),t.currentMonth.getMonth());r.calendarGrid.innerHTML=e.map(a=>{if(!a)return'<div class="calendar-day is-empty"></div>';const s=`${a.getFullYear()}-${`${a.getMonth()+1}`.padStart(2,"0")}-${`${a.getDate()}`.padStart(2,"0")}`,n=t.uploadMap[s]||0;return`
+      <button class="${["calendar-day",n?"has-data":"",t.selectedDate===s?"is-selected":""].filter(Boolean).join(" ")}" type="button" data-calendar-date="${s}">
         <span>${a.getDate()}</span>
         ${n?`<span class="calendar-dot" title="${n} 台車有紀錄"></span>`:"<span></span>"}
       </button>
-    `}).join(""),r.calendarGrid.querySelectorAll("[data-calendar-date]").forEach(a=>{a.addEventListener("click",async()=>{t.selectedDate=a.dataset.calendarDate,await y(),v(),x()})})}async function q(){const e=[...r.recordList.querySelectorAll("[data-photo-path]")];await Promise.all(e.map(async a=>{const c=a.querySelector("img");if(c)try{c.src=await C(a.dataset.photoPath,{width:720,height:540})}catch(n){a.querySelector(".record-photo-caption")?.replaceChildren(document.createTextNode(o(n)))}}))}function u(e,a){return`
+    `}).join(""),r.calendarGrid.querySelectorAll("[data-calendar-date]").forEach(a=>{a.addEventListener("click",async()=>{t.selectedDate=a.dataset.calendarDate,await y(),v(),x()})})}async function B(){const e=[...r.recordList.querySelectorAll("[data-photo-path]")];await Promise.all(e.map(async a=>{const s=a.querySelector("img");if(s)try{s.src=await C(a.dataset.photoPath,{width:720,height:540})}catch(n){if(S(n)){s.src=b;return}a.querySelector(".record-photo-caption")?.replaceChildren(document.createTextNode(o(n)))}}))}function u(e,a){return`
     <article class="record-photo-card" data-photo-path="${e.storagePath}">
       <div class="record-photo-frame">
         <img alt="${e.fileName}">
@@ -24,12 +24,12 @@ import{t as g,r as $,d as o,w as M,x as f,y as D,z as l,A as w,B as L,p as C}fro
         <strong>讀取失敗</strong>
         <p class="muted-copy">${o(e)}</p>
       </div>
-    `,s(o(e),"danger");return}if(r.selectedDateMeta.textContent=b(t.captureSets),!t.captureSets.length){r.recordList.innerHTML=`
+    `,c(o(e),"danger");return}if(r.selectedDateMeta.textContent=q(t.captureSets),!t.captureSets.length){r.recordList.innerHTML=`
       <div class="empty-state">
         <strong>這一天未有處理紀錄</strong>
         <p class="muted-copy">可回到 Check-in 或安裝維修保養頁建立新紀錄。</p>
       </div>
-    `,s("這一天暫時未有車輛處理紀錄。","");return}r.recordList.innerHTML=t.captureSets.map(e=>{const a=e.activityOnDate.hasCheckIn?`
+    `,c("這一天暫時未有車輛處理紀錄。","");return}r.recordList.innerHTML=t.captureSets.map(e=>{const a=e.activityOnDate.hasCheckIn?`
         <section class="activity-block">
           <div class="activity-head">
             <div>
@@ -45,7 +45,7 @@ import{t as g,r as $,d as o,w as M,x as f,y as D,z as l,A as w,B as L,p as C}fro
             ${(e.vehiclePhotos||[]).length?(e.vehiclePhotos||[]).map(n=>u(n,"車輛照")).join(""):m("車輛照")}
           </div>
         </section>
-      `:"",c=e.activityOnDate.serviceEntries.map((n,p)=>{const i=n.photos[0];return`
+      `:"",s=e.activityOnDate.serviceEntries.map((n,p)=>{const i=n.photos[0];return`
         <section class="activity-block">
           <div class="activity-head">
             <div>
@@ -75,7 +75,7 @@ import{t as g,r as $,d as o,w as M,x as f,y as D,z as l,A as w,B as L,p as C}fro
         </div>
         <div class="activity-stack">
           ${a}
-          ${c||`
+          ${s||`
             <div class="empty-state compact">
               <strong>當日只有 Check-in 或沒有新增工序</strong>
               <p class="muted-copy">這台車於當日沒有額外安裝、維修或保養輸入。</p>
@@ -83,4 +83,4 @@ import{t as g,r as $,d as o,w as M,x as f,y as D,z as l,A as w,B as L,p as C}fro
           `}
         </div>
       </article>
-    `}).join(""),await q(),s("已載入當日處理紀錄。","success")}async function h(){t.uploadMap=await M(t.currentMonth.getFullYear(),t.currentMonth.getMonth()),v()}function B(){r.prevMonthBtn.addEventListener("click",async()=>{t.currentMonth=new Date(t.currentMonth.getFullYear(),t.currentMonth.getMonth()-1,1),await h()}),r.nextMonthBtn.addEventListener("click",async()=>{t.currentMonth=new Date(t.currentMonth.getFullYear(),t.currentMonth.getMonth()+1,1),await h()})}async function k(){const e=await $(["staff","admin","superadmin","supreadmin"],"../index.html");S(e);const[a,c]=t.selectedDate.split("-").map(Number);t.currentMonth=new Date(a,c-1,1),s("正在載入處理紀錄...","");try{await h(),await y()}catch(n){s(o(n),"danger")}B()}k();
+    `}).join(""),await B(),c("已載入當日處理紀錄。","success")}async function h(){t.uploadMap=await $(t.currentMonth.getFullYear(),t.currentMonth.getMonth()),v()}function k(){r.prevMonthBtn.addEventListener("click",async()=>{t.currentMonth=new Date(t.currentMonth.getFullYear(),t.currentMonth.getMonth()-1,1),await h()}),r.nextMonthBtn.addEventListener("click",async()=>{t.currentMonth=new Date(t.currentMonth.getFullYear(),t.currentMonth.getMonth()+1,1),await h()})}async function E(){const e=await M(["staff","admin","superadmin","supreadmin"],"../index.html");P(e);const[a,s]=t.selectedDate.split("-").map(Number);t.currentMonth=new Date(a,s-1,1),c("正在載入處理紀錄...","");try{await h(),await y()}catch(n){c(o(n),"danger")}k()}E();

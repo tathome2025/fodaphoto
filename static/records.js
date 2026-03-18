@@ -8,6 +8,8 @@ import {
   formatMonthHeading,
   getMonthMatrix,
   getSignedPhotoUrl,
+  PHOTO_MISSING_PLACEHOLDER_URL,
+  shouldUseMissingPhotoPlaceholder,
   todayLocal,
 } from "./workbench.js";
 
@@ -100,6 +102,10 @@ async function hydratePhotoCards() {
         height: 540,
       });
     } catch (error) {
+      if (shouldUseMissingPhotoPlaceholder(error)) {
+        image.src = PHOTO_MISSING_PLACEHOLDER_URL;
+        return;
+      }
       card.querySelector(".record-photo-caption")?.replaceChildren(document.createTextNode(describeSupabaseError(error)));
     }
   }));

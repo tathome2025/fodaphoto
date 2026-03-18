@@ -8,8 +8,10 @@ import {
   fetchFilters,
   fetchPhotoDetail,
   getSignedPhotoUrl,
+  PHOTO_MISSING_PLACEHOLDER_URL,
   renderAdjustedBlob,
   renderAdjustedCanvas,
+  shouldUseMissingPhotoPlaceholder,
   upsertCurrentPhotoEdit,
 } from "./workbench.js";
 
@@ -250,14 +252,25 @@ async function init() {
     state.filters = filters;
     state.adjustments = cloneAdjustments(detail.photo.adjustments);
     state.appliedFilterId = detail.photo.savedFilterId || "";
-    state.sourceUrl = await getSignedPhotoUrl(detail.photo.storagePath);
+    try {
+      state.sourceUrl = await getSignedPhotoUrl(detail.photo.storagePath);
+    } catch (error) {
+      if (shouldUseMissingPhotoPlaceholder(error)) {
+        state.sourceUrl = PHOTO_MISSING_PLACEHOLDER_URL;
+        setStatus("原始圖片已刪除，現以替代圖顯示。", "danger");
+      } else {
+        throw error;
+      }
+    }
     syncMeta();
     syncSliders();
     renderPresets();
     renderFilterList();
     bindEvents();
     await renderPreview();
-    setStatus("可以開始進階調色。", "success");
+    if (state.sourceUrl !== PHOTO_MISSING_PLACEHOLDER_URL) {
+      setStatus("可以開始進階調色。", "success");
+    }
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   }

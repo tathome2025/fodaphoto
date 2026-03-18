@@ -1,6 +1,8 @@
 import { appConfig } from "./config.js";
 import { assertSupabaseConfigured, getCurrentUser, supabase } from "./supabase-browser.js";
 
+export const PHOTO_MISSING_PLACEHOLDER_URL = new URL("./photo-missing.svg", import.meta.url).href;
+
 export const DEFAULT_ADJUSTMENTS = {
   brightness: 0,
   contrast: 0,
@@ -1672,6 +1674,13 @@ export function describeSupabaseError(error) {
     return error;
   }
   return error.message || "發生未知錯誤。";
+}
+
+export function shouldUseMissingPhotoPlaceholder(error) {
+  const message = describeSupabaseError(error).toLowerCase();
+  return message.includes("object not found")
+    || message.includes("not found")
+    || message.includes("404");
 }
 
 export function countPhotosInSet(captureSet) {

@@ -7,6 +7,8 @@ import {
   formatDateHeading,
   formatDateTime,
   getSignedPhotoUrl,
+  PHOTO_MISSING_PLACEHOLDER_URL,
+  shouldUseMissingPhotoPlaceholder,
 } from "./workbench.js";
 
 const state = {
@@ -267,7 +269,12 @@ async function loadThumbnail(frame) {
       height: 360,
     });
     frame.dataset.thumbState = "done";
-  } catch (_error) {
+  } catch (error) {
+    if (shouldUseMissingPhotoPlaceholder(error)) {
+      image.src = PHOTO_MISSING_PLACEHOLDER_URL;
+      frame.dataset.thumbState = "done";
+      return;
+    }
     frame.dataset.thumbState = "error";
     frame.classList.add("is-error");
   }
@@ -298,6 +305,13 @@ async function openLightbox(photoId) {
       height: 1600,
     });
   } catch (error) {
+    if (shouldUseMissingPhotoPlaceholder(error)) {
+      refs.galleryLightboxImage.src = PHOTO_MISSING_PLACEHOLDER_URL;
+      refs.galleryLightboxTitle.textContent = `${photoVehicleLabel(photo)} · 圖片已刪除`;
+      refs.galleryLightboxSubtitle.textContent = "原始圖片不存在，現以替代圖顯示。";
+      refs.galleryLightboxOperator.textContent = `上傳帳號：${photo.createdByLabel || "未記錄"}`;
+      return;
+    }
     refs.galleryLightboxTitle.textContent = "圖片讀取失敗";
     refs.galleryLightboxSubtitle.textContent = describeSupabaseError(error);
     refs.galleryLightboxOperator.textContent = photo.storagePath;

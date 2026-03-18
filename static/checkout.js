@@ -4,6 +4,8 @@ import {
   fetchRecentCheckInSets,
   getSignedPhotoUrl,
   markCaptureSetServiceCompleted,
+  PHOTO_MISSING_PLACEHOLDER_URL,
+  shouldUseMissingPhotoPlaceholder,
 } from "./workbench.js";
 
 const refs = {
@@ -107,8 +109,11 @@ async function hydrateVehicleThumbs() {
         height: 270,
       });
       state.vehicleThumbUrls.set(captureSet.id, thumbUrl);
-    } catch (_error) {
-      state.vehicleThumbUrls.set(captureSet.id, "");
+    } catch (error) {
+      state.vehicleThumbUrls.set(
+        captureSet.id,
+        shouldUseMissingPhotoPlaceholder(error) ? PHOTO_MISSING_PLACEHOLDER_URL : ""
+      );
     }
   }));
 

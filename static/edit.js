@@ -14,9 +14,11 @@ import {
   getMonthMatrix,
   getSignedPhotoUrl,
   hasAdjustments,
+  PHOTO_MISSING_PLACEHOLDER_URL,
   renderAdjustedBlob,
   renderAdjustedDataUrl,
   sanitizeFileName,
+  shouldUseMissingPhotoPlaceholder,
 } from "./workbench.js";
 
 const dateQuery = new URLSearchParams(window.location.search).get("date");
@@ -180,6 +182,10 @@ async function hydrateCards() {
     try {
       image.src = await buildDisplayImage(photo, "thumb");
     } catch (error) {
+      if (shouldUseMissingPhotoPlaceholder(error)) {
+        image.src = PHOTO_MISSING_PLACEHOLDER_URL;
+        return;
+      }
       card.querySelector(".photo-body p").textContent = describeSupabaseError(error);
     }
   }));
