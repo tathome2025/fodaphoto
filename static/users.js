@@ -38,7 +38,18 @@ async function invokeUserAdmin(action, payload = {}) {
     throw new Error("Supabase 未設定。");
   }
 
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) {
+    throw sessionError;
+  }
+  if (!sessionData.session?.access_token) {
+    throw new Error("目前登入狀態無效，請先重新登入。");
+  }
+
   const { data, error } = await supabase.functions.invoke("user-admin", {
+    headers: {
+      Authorization: `Bearer ${sessionData.session.access_token}`,
+    },
     body: {
       action,
       ...payload,
@@ -46,6 +57,16 @@ async function invokeUserAdmin(action, payload = {}) {
   });
 
   if (error) {
+    if (typeof error.context?.json === "function") {
+      try {
+        const body = await error.context.json();
+        throw new Error(body?.error || error.message || "用戶管理操作失敗。");
+      } catch (contextError) {
+        if (contextError instanceof Error && contextError.message) {
+          throw contextError;
+        }
+      }
+    }
     throw error;
   }
   if (!data?.ok) {
