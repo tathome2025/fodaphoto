@@ -14,6 +14,10 @@
   - 桌面優先的日曆 / 列表 / 批量 filter / 批量下載
 - `/edit/detail.html`
   - 單張相片進階調色與另存 filter
+- `/api/health`
+  - Vercel serverless 健康檢查
+- `/api/ai/chat`
+  - 後端代理 OpenAI Chat Completions，供日後 AI 功能使用
 
 ## 技術選型
 
@@ -28,7 +32,7 @@
 需要 Node 20 或以上。
 
 ```bash
-cd "/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench"
+cd "/Users/TY/Downloads/fodaphoto-repo"
 npm install
 cp .env.example .env
 npm run dev
@@ -52,16 +56,18 @@ npm run build
 
 ## 環境變數
 
-見 [.env.example](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/.env.example)
+見 `.env.example`
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_PUBLISHABLE_KEY`
 - `VITE_SUPABASE_STORAGE_BUCKET`
 - `VITE_APP_TIMEZONE`
+- `OPENAI_API_KEY`（只放在 Vercel，不可放到前端）
+- `OPENAI_MODEL`（可選，預設 `gpt-4o-mini`）
 
 如果你只是直接用靜態伺服器開這個資料夾，而沒有經過 Vite build，則改填：
 
-- [static/runtime-config.js](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/static/runtime-config.js)
+- `static/runtime-config.js`
 
 現在也可以直接填 `.env`，再執行：
 
@@ -75,7 +81,7 @@ npm run sync-config
 
 已加入 workflow：
 
-- [.github/workflows/garage-photo-workbench-pages.yml](/Users/motorsportsfoda/Desktop/test project/.github/workflows/garage-photo-workbench-pages.yml)
+- `.github/workflows/garage-photo-workbench-pages.yml`
 
 push 到 `main` 後，GitHub Actions 會自動建置並部署 `garage-photo-workbench/dist`。
 
@@ -89,15 +95,27 @@ push 到 `main` 後，GitHub Actions 會自動建置並部署 `garage-photo-work
    - `VITE_SUPABASE_STORAGE_BUCKET`
    - `VITE_APP_TIMEZONE`
 
+## Vercel 部署（含 AI API 準備）
+
+專案已加入 `vercel.json` 與 `api/*` serverless routes。
+
+- Build command：`npm run build:vercel`
+- Output directory：`dist`
+- Runtime：Node.js 20（for `api/**/*.js`）
+
+部署詳細步驟見：
+
+- `VERCEL_SETUP.md`
+
 ## Supabase
 
 SQL schema：
 
-- [supabase/schema.sql](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/supabase/schema.sql)
+- `supabase/schema.sql`
 
 一步步設定說明：
 
-- [SUPABASE_SETUP.md](/Users/motorsportsfoda/Desktop/test project/garage-photo-workbench/SUPABASE_SETUP.md)
+- `SUPABASE_SETUP.md`
 
 ## 目前資料流程
 

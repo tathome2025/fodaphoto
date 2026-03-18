@@ -6,6 +6,7 @@
     "sync-config": "python3 scripts/sync_runtime_config.py",
     "dev": "python3 scripts/sync_runtime_config.py && vite",
     "build": "python3 scripts/sync_runtime_config.py && vite build",
+    "build:vercel": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
