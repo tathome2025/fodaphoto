@@ -13,6 +13,8 @@ const state = {
   groups: [],
 };
 
+let thumbnailObserver = null;
+
 const refs = {
   currentUserEmail: document.querySelector("#currentUserEmail"),
   galleryMeta: document.querySelector("#galleryMeta"),
@@ -126,20 +128,62 @@ function renderGallery() {
 
 async function hydrateThumbnails() {
   const frames = [...refs.galleryDateList.querySelectorAll("[data-photo-path]")];
-  await Promise.all(frames.map(async (frame) => {
-    const image = frame.querySelector("img");
-    if (!image) {
-      return;
-    }
-    try {
-      image.src = await getSignedPhotoUrl(frame.dataset.photoPath, {
-        width: 360,
-        height: 360,
+  if (!frames.length) {
+    return;
+  }
+
+  if (thumbnailObserver) {
+    thumbnailObserver.disconnect();
+  }
+
+  if ("IntersectionObserver" in window) {
+    thumbnailObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+        thumbnailObserver.unobserve(entry.target);
+        void loadThumbnail(entry.target);
       });
-    } catch (_error) {
-      frame.classList.add("is-error");
-    }
-  }));
+    }, {
+      rootMargin: "320px 0px",
+      threshold: 0.01,
+    });
+
+    frames.forEach((frame) => {
+      thumbnailObserver.observe(frame);
+    });
+    return;
+  }
+
+  for (const frame of frames) {
+    // Older browsers fallback to a slow sequential load instead of flooding storage.
+    // eslint-disable-next-line no-await-in-loop
+    await loadThumbnail(frame);
+  }
+}
+
+async function loadThumbnail(frame) {
+  if (!frame || frame.dataset.thumbState === "loading" || frame.dataset.thumbState === "done") {
+    return;
+  }
+
+  const image = frame.querySelector("img");
+  if (!image) {
+    return;
+  }
+
+  frame.dataset.thumbState = "loading";
+  try {
+    image.src = await getSignedPhotoUrl(frame.dataset.photoPath, {
+      width: 360,
+      height: 360,
+    });
+    frame.dataset.thumbState = "done";
+  } catch (_error) {
+    frame.dataset.thumbState = "error";
+    frame.classList.add("is-error");
+  }
 }
 
 function closeLightbox() {
