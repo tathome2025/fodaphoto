@@ -122,6 +122,34 @@ npm run dev
 5. 等 workflow：
    - [.github/workflows/garage-photo-workbench-pages.yml](/Users/motorsportsfoda/Desktop/test project/.github/workflows/garage-photo-workbench-pages.yml)
 
+## 8.1 Deploy Edge Function
+
+如果你要使用 `superadmin` 的「用戶管理」頁，還要另外部署這個 Supabase Edge Function：
+
+```bash
+supabase functions deploy user-admin
+```
+
+部署前請先確保你已經：
+
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+```
+
+這個 function 會使用 Supabase 內建的：
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+來安全地執行：
+
+- 列出用戶
+- 建立用戶
+- 更新群組
+- 刪除用戶
+
 ## 9. 上線後第一輪檢查
 
 部署完成後，實際驗證：

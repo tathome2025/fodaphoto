@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>用戶管理 | FODA工場流程</title>
+  <script src="../static/runtime-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" crossorigin src="../assets/users-CEFZXv2f.js"></script>
+  <link rel="modulepreload" crossorigin href="../assets/workbench-CTLmXLe8.js">
+  <link rel="stylesheet" crossorigin href="../assets/workbench-D-_onNzB.css">
+</head>
+<body class="page-users">
+  <header class="topbar">
+    <a class="back-link" href="../">← 返回首頁</a>
+    <div class="topbar-links">
+      <a class="secondary-link" href="../records/">返回查看紀錄</a>
+      <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
+    </div>
+  </header>
+
+  <main class="shell users-shell">
+    <section class="hero-block users-hero">
+      <p class="eyebrow">User Access Control</p>
+      <h1>用戶管理</h1>
+      <p class="hero-copy">只有 superadmin 可管理用戶群組、建立新帳號及刪除現有用戶。</p>
+    </section>
+
+    <section class="users-grid">
+      <article class="surface-card users-panel">
+        <div class="panel-head">
+          <p class="eyebrow">Create User</p>
+          <h1>新增用戶</h1>
+          <p class="panel-copy">建立新登入帳號，並指定 `staff`、`admin` 或 `superadmin` 群組。</p>
+        </div>
+
+        <form class="users-form" id="createUserForm">
+          <div class="field">
+            <label for="newUserEmail">Email</label>
+            <input id="newUserEmail" type="email" placeholder="user@example.com" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="newUserPassword">Password</label>
+            <input id="newUserPassword" type="text" placeholder="至少 8 個字元" autocomplete="new-password">
+          </div>
+          <div class="field">
+            <label for="newUserGroup">群組</label>
+            <select id="newUserGroup">
+              <option value="staff">staff</option>
+              <option value="admin">admin</option>
+              <option value="superadmin">superadmin</option>
+            </select>
+          </div>
+          <button class="primary-button" id="createUserBtn" type="submit">建立用戶</button>
+        </form>
+      </article>
+
+      <article class="surface-card users-panel">
+        <div class="panel-head">
+          <p class="eyebrow">Manage Users</p>
+          <h1>現有用戶</h1>
+          <p class="panel-copy">可調整權限群組，或刪除不再使用的帳號。</p>
+        </div>
+
+        <div class="toolbar-row users-toolbar">
+          <p class="status-text" id="usersStatus">正在載入用戶資料...</p>
+          <button class="secondary-button users-refresh-btn" id="refreshUsersBtn" type="button">重新整理</button>
+        </div>
+
+        <div class="users-list" id="usersList"></div>
+      </article>
+    </section>
+  </main>
+</body>
+</html>

@@ -24,6 +24,7 @@ const refs = {
   captureLink: document.querySelector("#captureLink"),
   recordsLink: document.querySelector("#recordsLink"),
   checkoutLink: document.querySelector("#checkoutLink"),
+  usersLink: document.querySelector("#usersLink"),
   editLink: document.querySelector("#editLink"),
 };
 
@@ -68,6 +69,9 @@ function syncPageAccess(user) {
   }
   if (refs.checkoutLink) {
     refs.checkoutLink.hidden = !isAdmin;
+  }
+  if (refs.usersLink) {
+    refs.usersLink.hidden = !isSuperAdmin;
   }
   if (refs.editLink) {
     refs.editLink.hidden = !isSuperAdmin;

@@ -86,7 +86,8 @@ button {
 .shell,
 .capture-shell,
 .edit-shell,
-.editor-shell {
+.editor-shell,
+.users-shell {
   position: relative;
   z-index: 1;
 }
@@ -194,6 +195,94 @@ button {
 
 .home-secondary-action {
   margin-top: 4.2rem;
+}
+
+.users-shell {
+  width: min(1280px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 1rem 0 2.2rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.users-hero {
+  justify-items: start;
+  text-align: left;
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.users-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.users-form,
+.users-list,
+.user-card,
+.user-card-meta,
+.user-card-actions {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.users-toolbar {
+  gap: 0.8rem;
+}
+
+.users-refresh-btn {
+  min-width: 8rem;
+}
+
+.users-list {
+  align-content: start;
+}
+
+.user-card {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.user-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.user-card-meta strong {
+  font-size: 1rem;
+}
+
+.user-card-meta span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.user-card-actions {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: end;
+}
+
+.user-group-field {
+  min-width: 0;
+}
+
+.user-group-field span {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.user-delete-btn {
+  border-color: rgba(255, 122, 122, 0.32);
 }
 
 .entry-card,
@@ -1620,6 +1709,7 @@ input[type="range"] {
 }
 
 @media (max-width: 1100px) {
+  .users-grid,
   .edit-shell,
   .editor-shell,
   .records-shell {
@@ -1661,6 +1751,7 @@ input[type="range"] {
   }
 
   .photo-card,
+  .user-card-actions,
   .lookup-creator-row,
   .selected-vehicle-card {
     grid-template-columns: 1fr;
