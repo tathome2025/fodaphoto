@@ -85,6 +85,7 @@ button {
 
 .shell,
 .capture-shell,
+.gallery-shell,
 .edit-shell,
 .editor-shell,
 .users-shell {
@@ -205,7 +206,20 @@ button {
   gap: 1rem;
 }
 
+.gallery-shell {
+  width: min(1480px, calc(100vw - 2rem));
+  margin: 0 auto;
+  padding: 1rem 0 2.4rem;
+  display: grid;
+  gap: 1rem;
+}
+
 .users-hero {
+  justify-items: start;
+  text-align: left;
+}
+
+.gallery-hero {
   justify-items: start;
   text-align: left;
 }
@@ -1152,6 +1166,166 @@ button {
   gap: 1rem;
 }
 
+.gallery-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.gallery-toolbar {
+  align-items: center;
+}
+
+.gallery-date-stack,
+.gallery-date-group,
+.gallery-photo-grid,
+.gallery-photo-caption,
+.gallery-lightbox-meta {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.gallery-date-group {
+  padding: 1rem 0 0;
+}
+
+.gallery-date-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.gallery-date-head h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.85rem);
+}
+
+.gallery-date-head .muted-copy {
+  margin-top: 0.35rem;
+}
+
+.gallery-date-divider {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(243, 161, 58, 0.5), rgba(255, 255, 255, 0.08));
+}
+
+.gallery-photo-grid {
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+}
+
+.gallery-photo-card {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+.gallery-photo-button {
+  display: grid;
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.gallery-photo-frame {
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: rgba(7, 9, 11, 0.82);
+}
+
+.gallery-photo-frame.is-error::after {
+  content: "讀取失敗";
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.gallery-photo-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.gallery-photo-caption {
+  padding: 0.75rem;
+  gap: 0.28rem;
+}
+
+.gallery-photo-caption strong,
+.gallery-photo-caption span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gallery-photo-caption span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.gallery-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.86);
+}
+
+.gallery-lightbox-shell {
+  display: grid;
+  gap: 0.9rem;
+  width: min(1080px, 100%);
+}
+
+.gallery-lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  min-width: 5.5rem;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  background: rgba(21, 24, 28, 0.94);
+}
+
+.gallery-lightbox-frame {
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: rgba(10, 12, 15, 0.94);
+  box-shadow: var(--shadow-lg);
+}
+
+.gallery-lightbox-frame img {
+  display: block;
+  width: 100%;
+  max-height: min(80vh, 900px);
+  object-fit: contain;
+}
+
+.gallery-lightbox-meta {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  background: rgba(20, 23, 27, 0.95);
+}
+
+.gallery-lightbox-meta strong {
+  font-size: 1rem;
+}
+
+.gallery-lightbox-meta span {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .record-vehicle-card {
   display: grid;
   gap: 1rem;
@@ -1710,6 +1884,7 @@ input[type="range"] {
 
 @media (max-width: 1100px) {
   .users-grid,
+  .gallery-shell,
   .edit-shell,
   .editor-shell,
   .records-shell {
@@ -1769,12 +1944,21 @@ input[type="range"] {
   .editor-topbar,
   .section-head,
   .toolbar-row,
-  .activity-head {
+  .activity-head,
+  .gallery-date-head {
     flex-direction: column;
     align-items: stretch;
   }
 
   .sticky-actionbar {
     width: calc(100vw - 1rem);
+  }
+
+  .gallery-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gallery-lightbox {
+    padding: 0.8rem;
   }
 }

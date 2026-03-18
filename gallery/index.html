@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>所有圖片庫 | FODA工場流程</title>
+  <link rel="stylesheet" href="../static/theme.css">
+  <script src="../static/runtime-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" src="../static/gallery.js"></script>
+</head>
+<body class="page-gallery">
+  <header class="workspace-topbar">
+    <a class="back-link" href="../">← 返回首頁</a>
+    <div class="topbar-links">
+      <a class="secondary-link" href="../users/">返回用戶管理</a>
+      <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
+    </div>
+  </header>
+
+  <main class="shell gallery-shell">
+    <section class="hero-block gallery-hero">
+      <p class="eyebrow">Full Photo Library</p>
+      <h1>所有圖片庫</h1>
+      <p class="hero-copy" id="galleryMeta">全部相片會按上傳日期分段，最新上傳的日期與相片排在最上方。</p>
+    </section>
+
+    <section class="list-panel gallery-panel">
+      <div class="toolbar-block">
+        <div class="toolbar-row gallery-toolbar">
+          <span class="filter-chip" id="galleryCountChip">0 張相片</span>
+          <p class="status-text" id="galleryStatus">正在載入全部圖片...</p>
+        </div>
+      </div>
+
+      <div class="gallery-date-stack" id="galleryDateList"></div>
+    </section>
+  </main>
+
+  <div class="gallery-lightbox" id="galleryLightbox" hidden>
+    <button class="gallery-lightbox-close" id="galleryLightboxClose" type="button" aria-label="關閉放大圖片">關閉</button>
+    <div class="gallery-lightbox-shell">
+      <div class="gallery-lightbox-frame">
+        <img id="galleryLightboxImage" alt="放大圖片">
+      </div>
+      <div class="gallery-lightbox-meta">
+        <strong id="galleryLightboxTitle">-</strong>
+        <span id="galleryLightboxSubtitle">-</span>
+        <span id="galleryLightboxOperator">-</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

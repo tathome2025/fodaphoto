@@ -16,6 +16,7 @@ export default defineConfig({
         capture: resolve(__dirname, "capture/index.html"),
         checkout: resolve(__dirname, "checkout/index.html"),
         records: resolve(__dirname, "records/index.html"),
+        gallery: resolve(__dirname, "gallery/index.html"),
         users: resolve(__dirname, "users/index.html"),
         edit: resolve(__dirname, "edit/index.html"),
         detail: resolve(__dirname, "edit/detail.html"),

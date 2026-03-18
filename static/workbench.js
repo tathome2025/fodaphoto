@@ -159,6 +159,10 @@ function localDateKeyFromTimestamp(timestamp) {
   }).format(new Date(timestamp));
 }
 
+export function dateKeyFromTimestamp(timestamp) {
+  return localDateKeyFromTimestamp(timestamp);
+}
+
 function isTimestampOnLocalDate(timestamp, dateText) {
   return localDateKeyFromTimestamp(timestamp) === dateText;
 }
@@ -1361,6 +1365,84 @@ export async function fetchCaptureSetsByActivityDate(dateText) {
       const rightLatest = rightTimes.sort().slice(-1)[0] || right.updatedAt;
       return rightLatest.localeCompare(leftLatest);
     });
+}
+
+export async function fetchAllLibraryPhotos() {
+  const client = assertSupabaseConfigured();
+  const lookups = await loadLookups();
+
+  const { data: photos, error: photoError } = await client
+    .from("photos")
+    .select("id, capture_set_id, kind, service_item_id, item_note, storage_path, original_file_name, mime_type, width, height, sort_order, created_at, created_by, created_by_label")
+    .order("created_at", { ascending: false })
+    .order("sort_order", { ascending: true });
+
+  if (photoError) {
+    throw photoError;
+  }
+
+  if (!photos?.length) {
+    return [];
+  }
+
+  const setIds = [...new Set(photos.map((photo) => photo.capture_set_id).filter(Boolean))];
+  const { data: sets, error: setError } = await client
+    .from("capture_sets")
+    .select("id, reference, capture_date, brand_id, vehicle_model, created_at, created_by, created_by_label")
+    .in("id", setIds);
+
+  if (setError) {
+    throw setError;
+  }
+
+  const setMap = new Map((sets || []).map((captureSet) => [
+    captureSet.id,
+    {
+      id: captureSet.id,
+      reference: captureSet.reference,
+      captureDate: captureSet.capture_date,
+      brandId: captureSet.brand_id,
+      vehicleModel: captureSet.vehicle_model || "",
+      brandName: lookups.brandLookup.get(captureSet.brand_id)?.name || captureSet.brand_id,
+      createdAt: captureSet.created_at,
+      createdBy: captureSet.created_by || null,
+      createdByLabel: captureSet.created_by_label || "",
+    },
+  ]));
+
+  const photoIds = photos.map((photo) => photo.id);
+  const photoServiceItemMap = await fetchPhotoServiceItemsMap(photoIds);
+
+  return photos.map((photo) => {
+    const captureSet = setMap.get(photo.capture_set_id) || null;
+    const serviceItems = normalizeServiceItemsForPhoto(
+      photo,
+      { serviceItemLookup: lookups.serviceItemLookup },
+      photoServiceItemMap
+    );
+
+    return {
+      id: photo.id,
+      captureSetId: photo.capture_set_id,
+      kind: photo.kind,
+      kindLabel: photo.kind === "vehicle" ? "車輛照" : "安裝維修保養",
+      serviceItemId: serviceItems.primaryItemId,
+      serviceItemIds: serviceItems.itemIds,
+      itemName: serviceItems.itemNames[0] || serviceItems.primaryItemId || "",
+      itemNames: serviceItems.itemNames,
+      itemLabel: serviceItems.itemLabel,
+      itemNote: photo.item_note || "",
+      storagePath: photo.storage_path,
+      fileName: photo.original_file_name,
+      mimeType: photo.mime_type,
+      width: photo.width,
+      height: photo.height,
+      createdAt: photo.created_at,
+      createdBy: photo.created_by || null,
+      createdByLabel: photo.created_by_label || "",
+      captureSet,
+    };
+  });
 }
 
 export async function upsertCurrentPhotoEdit(photoId, adjustments, filterId = null) {
