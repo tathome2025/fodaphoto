@@ -1,6 +1,7 @@
 import { isSupabaseConfigured } from "./config.js";
 import {
   getCurrentUser,
+  getUserGroup,
   onAuthStateChange,
   signInWithPassword,
   signOut,
@@ -19,6 +20,11 @@ const refs = {
   userEmail: document.querySelector("#userEmail"),
   topUserBanner: document.querySelector("#topUserBanner"),
   topUserEmail: document.querySelector("#topUserEmail"),
+  checkinLink: document.querySelector("#checkinLink"),
+  captureLink: document.querySelector("#captureLink"),
+  recordsLink: document.querySelector("#recordsLink"),
+  checkoutLink: document.querySelector("#checkoutLink"),
+  editLink: document.querySelector("#editLink"),
 };
 
 function withTimeout(promise, ms, message) {
@@ -45,6 +51,29 @@ function getUserLabel(user) {
   return user?.email || user?.phone || user?.id || "-";
 }
 
+function syncPageAccess(user) {
+  const group = getUserGroup(user);
+  const isSuperAdmin = group === "superadmin";
+  const isAdmin = group === "admin" || isSuperAdmin;
+  const isStaff = group === "staff";
+
+  if (refs.checkinLink) {
+    refs.checkinLink.hidden = !(isAdmin || isStaff);
+  }
+  if (refs.captureLink) {
+    refs.captureLink.hidden = !(isAdmin || isStaff);
+  }
+  if (refs.recordsLink) {
+    refs.recordsLink.hidden = !(isAdmin || isStaff);
+  }
+  if (refs.checkoutLink) {
+    refs.checkoutLink.hidden = !isAdmin;
+  }
+  if (refs.editLink) {
+    refs.editLink.hidden = !isSuperAdmin;
+  }
+}
+
 function syncUserUI(user) {
   const hasUser = Boolean(user);
   refs.authHeading.textContent = hasUser ? "已登入" : "登入";
@@ -57,6 +86,7 @@ function syncUserUI(user) {
   if (refs.topUserEmail) {
     refs.topUserEmail.textContent = getUserLabel(user);
   }
+  syncPageAccess(user);
 }
 
 let preserveStatusOnce = false;
@@ -141,7 +171,8 @@ function consumeErrorParam() {
   }
 
   const messages = {
-    "no-session": "請先登入，才能進入 Check-in、安裝維修保養、Check out、查看紀錄或 edit 頁面。",
+    "no-session": "請先登入，才能進入可用頁面。",
+    "no-access": "你的帳號群組沒有這個頁面的權限。",
     "missing-config": "尚未設定 Supabase。請先補回 URL 與 Publishable Key。",
   };
   preserveStatusOnce = true;

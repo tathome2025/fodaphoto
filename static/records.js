@@ -1,4 +1,4 @@
-import { requireAuthenticatedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   describeSupabaseError,
   fetchActivityDates,
@@ -239,7 +239,7 @@ function bindEvents() {
 }
 
 async function init() {
-  const user = await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthorizedPage(["staff", "admin", "superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
   const [year, month] = state.selectedDate.split("-").map(Number);
   state.currentMonth = new Date(year, month - 1, 1);

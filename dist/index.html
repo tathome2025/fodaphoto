@@ -6,8 +6,8 @@
   <title>FODA工場流程</title>
   <script src="./static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script type="module" crossorigin src="./assets/home-CwqWq6nx.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/workbench-BWYZBm2m.js">
+  <script type="module" crossorigin src="./assets/home-D9aAbjwQ.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/workbench-BpyuzTT1.js">
   <link rel="stylesheet" crossorigin href="./assets/workbench-BrU4skf3.css">
 </head>
 <body class="page-home">
@@ -40,10 +40,10 @@
         </form>
 
         <div class="home-entry-stack">
-          <a class="primary-button home-capture-link" href="./checkin/">Check-in</a>
-          <a class="warning-stripe-button home-capture-link warning-stripe-button-darktext" href="./capture/"><span>安裝維修保養</span></a>
-          <a class="primary-button home-capture-link" href="./records/">查看紀錄</a>
-          <a class="secondary-button home-capture-link" href="./checkout/">Check out</a>
+          <a class="primary-button home-capture-link" id="checkinLink" href="./checkin/">Check-in</a>
+          <a class="warning-stripe-button home-capture-link warning-stripe-button-darktext" id="captureLink" href="./capture/"><span>安裝維修保養</span></a>
+          <a class="primary-button home-capture-link" id="recordsLink" href="./records/">查看紀錄</a>
+          <a class="secondary-button home-capture-link" id="checkoutLink" href="./checkout/">Check out</a>
         </div>
 
         <div class="toolbar-row" id="userPanel" hidden>
@@ -59,7 +59,7 @@
     </section>
 
     <section class="home-secondary-action">
-      <a class="secondary-button home-secondary-link" href="./edit/">相片Edit</a>
+      <a class="secondary-button home-secondary-link" id="editLink" href="./edit/">相片Edit</a>
     </section>
   </main>
 </body>

@@ -1,4 +1,4 @@
-import { requireAuthenticatedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   PRESETS,
   buildFolderName,
@@ -240,7 +240,7 @@ async function init() {
     return;
   }
 
-  const user = await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthorizedPage(["superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
   setStatus("讀取相片資料中...", "");
 

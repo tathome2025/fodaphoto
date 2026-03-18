@@ -1,4 +1,4 @@
-import { requireAuthenticatedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   applyFilterToDate,
   buildFolderName,
@@ -346,7 +346,7 @@ function bindEvents() {
 }
 
 async function init() {
-  const user = await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthorizedPage(["superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
 
   const seedDate = state.selectedDate ? new Date(`${state.selectedDate}T00:00:00`) : new Date();

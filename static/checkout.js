@@ -1,4 +1,4 @@
-import { requireAuthenticatedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   describeSupabaseError,
   fetchRecentCheckInSets,
@@ -152,7 +152,7 @@ function bindEvents() {
 }
 
 async function init() {
-  const user = await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthorizedPage(["admin", "superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
   setStatus("正在載入已 Check-in 車輛...", "");
 

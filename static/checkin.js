@@ -1,4 +1,4 @@
-import { requireAuthenticatedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   createBrand,
   createCheckInSet,
@@ -596,7 +596,7 @@ function bindEvents() {
 }
 
 async function init() {
-  const user = await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthorizedPage(["staff", "admin", "superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
   renderVehiclePreview();
   setStatus("正在載入品牌資料...", "");

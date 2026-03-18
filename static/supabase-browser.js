@@ -55,6 +55,42 @@ export async function getCurrentUser() {
   return data.user || null;
 }
 
+function normalizeGroupName(value) {
+  const normalized = `${value || ""}`.trim().toLowerCase();
+  if (!normalized) {
+    return "";
+  }
+  if (normalized === "supreadmin") {
+    return "superadmin";
+  }
+  return normalized;
+}
+
+export function getUserGroup(user) {
+  const candidates = [
+    user?.app_metadata?.group,
+    user?.app_metadata?.role,
+    ...(Array.isArray(user?.app_metadata?.groups) ? user.app_metadata.groups : []),
+    user?.user_metadata?.group,
+    user?.user_metadata?.role,
+    ...(Array.isArray(user?.user_metadata?.groups) ? user.user_metadata.groups : []),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeGroupName(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+  return "";
+}
+
+export function userHasAnyGroup(user, allowedGroups = []) {
+  const currentGroup = getUserGroup(user);
+  const allowed = new Set((allowedGroups || []).map((group) => normalizeGroupName(group)).filter(Boolean));
+  return allowed.has(currentGroup);
+}
+
 export async function requireAuthenticatedPage(redirectHref = "../index.html") {
   if (!supabase) {
     const url = new URL(redirectHref, window.location.href);
@@ -71,6 +107,19 @@ export async function requireAuthenticatedPage(redirectHref = "../index.html") {
     throw new Error("尚未登入。");
   }
   return user;
+}
+
+export async function requireAuthorizedPage(allowedGroups = [], redirectHref = "../index.html") {
+  const user = await requireAuthenticatedPage(redirectHref);
+  if (!allowedGroups?.length || userHasAnyGroup(user, allowedGroups)) {
+    return user;
+  }
+
+  const url = new URL(redirectHref, window.location.href);
+  url.searchParams.set("error", "no-access");
+  url.searchParams.set("group", getUserGroup(user) || "unknown");
+  window.location.href = url.toString();
+  throw new Error("沒有頁面權限。");
 }
 
 export async function signInWithPassword(email, password) {

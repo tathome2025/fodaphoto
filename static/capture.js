@@ -1,4 +1,4 @@
-import { requireAuthenticatedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   appendServiceEntriesToCaptureSet,
   createServiceItem,
@@ -655,7 +655,7 @@ function bindEvents() {
 }
 
 async function init() {
-  const user = await requireAuthenticatedPage("../index.html");
+  const user = await requireAuthorizedPage(["staff", "admin", "superadmin", "supreadmin"], "../index.html");
   syncCurrentUser(user);
   state.accessoryEntries = [createAccessoryEntry()];
   renderAccessoryList();
