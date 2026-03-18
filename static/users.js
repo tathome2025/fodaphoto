@@ -1,8 +1,8 @@
 import { appConfig } from "./config.js";
-import { requireAuthorizedPage } from "./supabase-browser.js";
+import { requireAuthorizedPage, signOut } from "./supabase-browser.js";
 import { describeSupabaseError, supabase } from "./workbench.js";
 
-const USER_ADMIN_CLIENT_VERSION = "20260318-3";
+const USER_ADMIN_CLIENT_VERSION = "20260318-4";
 
 const refs = {
   currentUserEmail: document.querySelector("#currentUserEmail"),
@@ -50,6 +50,10 @@ async function invokeUserAdmin(action, payload = {}) {
       refresh_token: sessionData.session.refresh_token,
     });
     if (refreshed.error) {
+      if (/jwt|session/i.test(refreshed.error.message || "")) {
+        await signOut().catch(() => {});
+        throw new Error("登入狀態已失效，請重新登入 superadmin 帳號。");
+      }
       throw refreshed.error;
     }
     sessionData = refreshed.data;
@@ -82,6 +86,10 @@ async function invokeUserAdmin(action, payload = {}) {
   }
 
   if (!response.ok) {
+    if (/invalid jwt/i.test(`${data?.error || data?.message || rawText || ""}`)) {
+      await signOut().catch(() => {});
+      throw new Error("登入狀態已失效，請重新登入 superadmin 帳號。");
+    }
     throw new Error(data?.error || data?.message || rawText || `用戶管理操作失敗（HTTP ${response.status}）。`);
   }
   if (!data?.ok) {

@@ -39,16 +39,43 @@ export async function getCurrentUser() {
     return null;
   }
 
+  const clearInvalidSession = async () => {
+    try {
+      await supabase.auth.signOut({ scope: "local" });
+    } catch (_error) {
+      // Ignore local cleanup failures and just treat the session as missing.
+    }
+    return null;
+  };
+
   const session = await getSession();
-  if (session?.user) {
-    return session.user;
+  if (!session) {
+    return null;
   }
 
-  const { data, error } = await supabase.auth.getUser();
+  let activeSession = session;
+  if (session.refresh_token) {
+    const refreshed = await supabase.auth.refreshSession({
+      refresh_token: session.refresh_token,
+    });
+    if (refreshed.error) {
+      const message = refreshed.error.message || "";
+      if (/session/i.test(message) || /jwt/i.test(message)) {
+        return clearInvalidSession();
+      }
+      throw refreshed.error;
+    }
+    activeSession = refreshed.data.session || session;
+    if (refreshed.data.user) {
+      return refreshed.data.user;
+    }
+  }
+
+  const { data, error } = await supabase.auth.getUser(activeSession.access_token);
   if (error) {
     const message = error.message || "";
     if (/session/i.test(message) || /jwt/i.test(message)) {
-      return null;
+      return clearInvalidSession();
     }
     throw error;
   }
