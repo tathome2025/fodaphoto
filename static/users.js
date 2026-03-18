@@ -1,3 +1,4 @@
+import { appConfig } from "./config.js";
 import { requireAuthorizedPage } from "./supabase-browser.js";
 import { describeSupabaseError, supabase } from "./workbench.js";
 
@@ -46,28 +47,28 @@ async function invokeUserAdmin(action, payload = {}) {
     throw new Error("目前登入狀態無效，請先重新登入。");
   }
 
-  const { data, error } = await supabase.functions.invoke("user-admin", {
+  const response = await fetch(`${appConfig.supabaseUrl}/functions/v1/user-admin`, {
+    method: "POST",
     headers: {
+      "Content-Type": "application/json",
+      apikey: appConfig.supabasePublishableKey,
       Authorization: `Bearer ${sessionData.session.access_token}`,
     },
-    body: {
+    body: JSON.stringify({
       action,
       ...payload,
-    },
+    }),
   });
 
-  if (error) {
-    if (typeof error.context?.json === "function") {
-      try {
-        const body = await error.context.json();
-        throw new Error(body?.error || error.message || "用戶管理操作失敗。");
-      } catch (contextError) {
-        if (contextError instanceof Error && contextError.message) {
-          throw contextError;
-        }
-      }
-    }
-    throw error;
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (_error) {
+    data = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(data?.error || data?.message || `用戶管理操作失敗（HTTP ${response.status}）。`);
   }
   if (!data?.ok) {
     throw new Error(data?.error || "用戶管理操作失敗。");
