@@ -106,9 +106,10 @@ async function hydratePhotoCards() {
       return;
     }
     try {
+      const isThumbOnly = card.dataset.thumbOnly === "true";
       image.src = await getSignedPhotoUrl(card.dataset.photoPath, {
-        width: 720,
-        height: 540,
+        width: isThumbOnly ? 320 : 720,
+        height: isThumbOnly ? 240 : 540,
       });
     } catch (error) {
       if (shouldUseMissingPhotoPlaceholder(error)) {
@@ -155,6 +156,23 @@ function renderDeletedPhotoPlaceholder(label = "相片") {
   `;
 }
 
+function renderRecordSummaryThumb(captureSet) {
+  const coverPhoto = (captureSet.vehiclePhotos || [])[0];
+  if (!coverPhoto) {
+    return `
+      <div class="record-summary-thumb is-missing">
+        <img src="${PHOTO_MISSING_PLACEHOLDER_URL}" alt="車輛相片已刪除">
+      </div>
+    `;
+  }
+  const alt = `${captureSet.brandName}${captureSet.vehicleModel ? ` ${captureSet.vehicleModel}` : ""}`;
+  return `
+    <div class="record-summary-thumb" data-photo-path="${coverPhoto.storagePath}" data-thumb-only="true">
+      <img alt="${alt}">
+    </div>
+  `;
+}
+
 async function renderCurrentDate() {
   refs.selectedDateTitle.textContent = formatDateHeading(state.selectedDate);
   refs.selectedDateChip.textContent = state.selectedDate;
@@ -186,6 +204,14 @@ async function renderCurrentDate() {
   }
 
   refs.recordList.innerHTML = state.captureSets.map((captureSet) => {
+    const isCompleted = Boolean(captureSet.serviceCompletedAt);
+    const completionText = isCompleted
+      ? "已完成工序（已 Check-out）"
+      : "未完成工序（未 Check-out）";
+    const completionMeta = isCompleted
+      ? `完成帳號：${captureSet.serviceCompletedByLabel || "未記錄"}${captureSet.serviceCompletedAt ? ` · ${formatDateTime(captureSet.serviceCompletedAt)}` : ""}`
+      : "尚未完成 Check-out";
+
     const checkInBlock = captureSet.activityOnDate.hasCheckIn
       ? `
         <section class="activity-block">
@@ -250,6 +276,13 @@ async function renderCurrentDate() {
         </div>
         <div class="record-toggle-row">
           <button class="tiny-button record-toggle-button" type="button" data-record-toggle aria-expanded="false">查看詳細資料</button>
+        </div>
+        <div class="record-summary">
+          ${renderRecordSummaryThumb(captureSet)}
+          <div class="record-summary-meta">
+            <p class="record-completion ${isCompleted ? "is-complete" : "is-pending"}">${completionText}</p>
+            <p class="record-completion-meta">${completionMeta}</p>
+          </div>
         </div>
         <div class="activity-stack" data-record-details hidden>
           ${checkInBlock}

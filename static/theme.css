@@ -1393,6 +1393,56 @@ button {
   padding: 0.4rem 1rem;
 }
 
+.record-summary {
+  display: grid;
+  grid-template-columns: minmax(96px, 120px) minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.record-summary-thumb {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  aspect-ratio: 4 / 3;
+}
+
+.record-summary-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.record-summary-meta {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.record-completion,
+.record-completion-meta {
+  margin: 0;
+}
+
+.record-completion {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.record-completion.is-complete {
+  color: #49d17b;
+}
+
+.record-completion.is-pending {
+  color: #ff6464;
+}
+
+.record-completion-meta {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 .activity-stack,
 .activity-block,
 .record-photo-grid {
