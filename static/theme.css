@@ -1240,18 +1240,20 @@ button {
   cursor: zoom-in;
 }
 
-.order-sheet-lightbox-frame {
+#orderSheetLightbox .order-sheet-lightbox-frame {
   overflow: auto;
-  max-height: min(80vh, 900px);
+  width: min(96vw, 1400px);
+  max-width: none;
+  max-height: min(82vh, 1000px);
   overscroll-behavior: contain;
 }
 
-.order-sheet-lightbox-frame img {
+#orderSheetLightbox #orderSheetLightboxImage {
   display: block;
   width: auto;
+  height: auto;
   max-width: none;
   max-height: none;
-  height: auto;
   object-fit: initial;
 }
 
