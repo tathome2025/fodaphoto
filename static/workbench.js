@@ -1708,9 +1708,18 @@ export function describeSupabaseError(error) {
     return "發生未知錯誤。";
   }
   if (typeof error === "string") {
+    const normalized = error.toLowerCase();
+    if (normalized.includes("invalid input value for enum photo_kind") && normalized.includes("order_sheet")) {
+      return "資料庫尚未升級到 Order Sheet 版本。請在 Supabase SQL Editor 執行 2026-03-18-order-sheet-checkin.sql。";
+    }
     return error;
   }
-  return error.message || "發生未知錯誤。";
+  const message = error.message || "發生未知錯誤。";
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid input value for enum photo_kind") && normalized.includes("order_sheet")) {
+    return "資料庫尚未升級到 Order Sheet 版本。請在 Supabase SQL Editor 執行 2026-03-18-order-sheet-checkin.sql。";
+  }
+  return message;
 }
 
 export function shouldUseMissingPhotoPlaceholder(error) {
