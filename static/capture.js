@@ -32,8 +32,14 @@ const refs = {
   orderSheetSection: document.querySelector("#orderSheetSection"),
   orderSheetMeta: document.querySelector("#orderSheetMeta"),
   orderSheetPreviewGrid: document.querySelector("#orderSheetPreviewGrid"),
+  orderSheetHistoryList: document.querySelector("#orderSheetHistoryList"),
   updateOrderSheetBtn: document.querySelector("#updateOrderSheetBtn"),
   clearOrderSheetDraftBtn: document.querySelector("#clearOrderSheetDraftBtn"),
+  orderSheetLightbox: document.querySelector("#orderSheetLightbox"),
+  closeOrderSheetLightboxBtn: document.querySelector("#closeOrderSheetLightboxBtn"),
+  orderSheetLightboxImage: document.querySelector("#orderSheetLightboxImage"),
+  orderSheetLightboxTitle: document.querySelector("#orderSheetLightboxTitle"),
+  orderSheetLightboxMeta: document.querySelector("#orderSheetLightboxMeta"),
   currentUserEmail: document.querySelector("#currentUserEmail"),
 };
 
@@ -44,6 +50,8 @@ const state = {
   selectedCaptureSetId: "",
   vehicleThumbUrls: new Map(),
   orderSheetThumbUrls: new Map(),
+  orderSheetFullUrls: new Map(),
+  orderSheetPhotoById: new Map(),
   pendingOrderSheetPhoto: null,
   pendingOrderSheetCapturedAt: "",
   cameraTarget: null,
@@ -169,12 +177,43 @@ function getSelectedCaptureSet() {
   return state.checkInSets.find((captureSet) => captureSet.id === state.selectedCaptureSetId) || null;
 }
 
-function getLatestOrderSheetPhoto(captureSet) {
-  const photos = captureSet?.orderSheetPhotos || [];
-  if (!photos.length) {
-    return null;
+function getOrderSheetPhotosSorted(captureSet) {
+  return [...(captureSet?.orderSheetPhotos || [])]
+    .sort((left, right) => `${right.createdAt || ""}`.localeCompare(`${left.createdAt || ""}`));
+}
+
+function openOrderSheetLightboxBySrc(imageSrc, title, meta) {
+  refs.orderSheetLightboxTitle.textContent = title || "Order Sheet";
+  refs.orderSheetLightboxMeta.textContent = meta || "";
+  refs.orderSheetLightboxImage.src = imageSrc || PHOTO_MISSING_PLACEHOLDER_URL;
+  refs.orderSheetLightbox.hidden = false;
+}
+
+async function openOrderSheetLightboxByPath(storagePath, title, meta) {
+  refs.orderSheetLightboxTitle.textContent = title || "Order Sheet";
+  refs.orderSheetLightboxMeta.textContent = meta || "";
+  refs.orderSheetLightboxImage.src = PHOTO_MISSING_PLACEHOLDER_URL;
+  refs.orderSheetLightbox.hidden = false;
+
+  if (!storagePath) {
+    return;
   }
-  return [...photos].sort((left, right) => `${right.createdAt || ""}`.localeCompare(`${left.createdAt || ""}`))[0];
+
+  try {
+    if (!state.orderSheetFullUrls.has(storagePath)) {
+      state.orderSheetFullUrls.set(storagePath, await getSignedPhotoUrl(storagePath));
+    }
+    refs.orderSheetLightboxImage.src = state.orderSheetFullUrls.get(storagePath);
+  } catch (error) {
+    refs.orderSheetLightboxImage.src = shouldUseMissingPhotoPlaceholder(error)
+      ? PHOTO_MISSING_PLACEHOLDER_URL
+      : "";
+    setStatus(describeSupabaseError(error), "danger");
+  }
+}
+
+function closeOrderSheetLightbox() {
+  refs.orderSheetLightbox.hidden = true;
 }
 
 function resetAccessoryEntries() {
@@ -279,17 +318,22 @@ async function hydrateOrderSheetPreviews() {
 function renderOrderSheetPanel() {
   const selectedSet = getSelectedCaptureSet();
   if (!selectedSet) {
+    closeOrderSheetLightbox();
     refs.orderSheetSection.hidden = true;
     refs.updateOrderSheetBtn.disabled = true;
     refs.orderSheetMeta.innerHTML = "";
     refs.orderSheetPreviewGrid.innerHTML = "";
+    refs.orderSheetHistoryList.innerHTML = "";
     refs.clearOrderSheetDraftBtn.hidden = true;
     return;
   }
 
   refs.orderSheetSection.hidden = false;
   refs.updateOrderSheetBtn.disabled = false;
-  const latest = getLatestOrderSheetPhoto(selectedSet);
+  const sortedPhotos = getOrderSheetPhotosSorted(selectedSet);
+  state.orderSheetPhotoById = new Map(sortedPhotos.map((photo) => [photo.id, photo]));
+  const latest = sortedPhotos[0] || null;
+  const history = sortedPhotos.slice(1);
   const latestMeta = latest
     ? `目前版本：${formatDateTime(latest.createdAt)} · ${latest.createdByLabel || "未記錄"}`
     : "目前版本：未有 Order Sheet";
@@ -306,7 +350,19 @@ function renderOrderSheetPanel() {
     <article class="record-photo-card">
       <div class="record-photo-frame">
         ${latest
-          ? `<div data-order-sheet-path="${latest.storagePath}" data-order-sheet-photo-id="${latest.id}"><img alt="目前 Order Sheet"></div>`
+          ? `
+            <button
+              class="order-sheet-preview-button"
+              type="button"
+              data-open-order-sheet-path="${latest.storagePath}"
+              data-open-order-sheet-title="目前 Order Sheet"
+              data-open-order-sheet-photo-id="${latest.id}"
+            >
+              <div data-order-sheet-path="${latest.storagePath}" data-order-sheet-photo-id="${latest.id}">
+                <img alt="目前 Order Sheet">
+              </div>
+            </button>
+          `
           : `<img src="${PHOTO_MISSING_PLACEHOLDER_URL}" alt="未有 Order Sheet">`}
       </div>
       <div class="record-photo-caption">
@@ -317,7 +373,15 @@ function renderOrderSheetPanel() {
     ${state.pendingOrderSheetPhoto ? `
       <article class="record-photo-card">
         <div class="record-photo-frame">
-          <img src="${state.pendingOrderSheetPhoto.previewUrl}" alt="待更新 Order Sheet">
+          <button
+            class="order-sheet-preview-button"
+            type="button"
+            data-open-order-sheet-src="${state.pendingOrderSheetPhoto.previewUrl}"
+            data-open-order-sheet-title="待更新 Order Sheet（未上傳）"
+            data-open-order-sheet-draft="true"
+          >
+            <img src="${state.pendingOrderSheetPhoto.previewUrl}" alt="待更新 Order Sheet">
+          </button>
         </div>
         <div class="record-photo-caption">
           <strong>待更新（按完成後上傳）</strong>
@@ -327,8 +391,50 @@ function renderOrderSheetPanel() {
     ` : ""}
   `;
 
+  refs.orderSheetHistoryList.innerHTML = history.length
+    ? history.map((photo, index) => `
+      <button
+        class="order-sheet-history-link"
+        type="button"
+        data-open-order-sheet-path="${photo.storagePath}"
+        data-open-order-sheet-title="舊版本 Order Sheet #${history.length - index}"
+        data-open-order-sheet-photo-id="${photo.id}"
+      >
+        ${formatDateTime(photo.createdAt)} · ${photo.createdByLabel || "未記錄"}
+      </button>
+    `).join("")
+    : `<p class="muted-copy">暫時未有舊版本。</p>`;
+
   refs.clearOrderSheetDraftBtn.hidden = !state.pendingOrderSheetPhoto;
+  bindOrderSheetInteractions();
   hydrateOrderSheetPreviews();
+}
+
+function bindOrderSheetInteractions() {
+  refs.orderSheetSection.querySelectorAll("[data-open-order-sheet-path]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const photo = state.orderSheetPhotoById.get(button.dataset.openOrderSheetPhotoId || "");
+      const meta = photo
+        ? `${formatDateTime(photo.createdAt)} · ${photo.createdByLabel || "未記錄"}`
+        : "";
+      await openOrderSheetLightboxByPath(
+        button.dataset.openOrderSheetPath,
+        button.dataset.openOrderSheetTitle,
+        meta
+      );
+    });
+  });
+
+  refs.orderSheetSection.querySelectorAll("[data-open-order-sheet-src]").forEach((button) => {
+    const draftMeta = `${formatDateTime(state.pendingOrderSheetCapturedAt || new Date().toISOString())} · ${refs.currentUserEmail?.textContent || "目前帳號"}`;
+    button.addEventListener("click", () => {
+      openOrderSheetLightboxBySrc(
+        button.dataset.openOrderSheetSrc,
+        button.dataset.openOrderSheetTitle,
+        draftMeta
+      );
+    });
+  });
 }
 
 async function hydrateVehicleThumbs() {
@@ -820,6 +926,17 @@ function bindEvents() {
   refs.cameraOverlay.addEventListener("click", async (event) => {
     if (event.target === refs.cameraOverlay) {
       await closeCameraOverlay();
+    }
+  });
+  refs.closeOrderSheetLightboxBtn.addEventListener("click", closeOrderSheetLightbox);
+  refs.orderSheetLightbox.addEventListener("click", (event) => {
+    if (event.target === refs.orderSheetLightbox) {
+      closeOrderSheetLightbox();
+    }
+  });
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !refs.orderSheetLightbox.hidden) {
+      closeOrderSheetLightbox();
     }
   });
 

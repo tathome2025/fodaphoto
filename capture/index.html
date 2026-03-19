@@ -43,7 +43,13 @@
             </div>
           </div>
           <div class="order-sheet-meta" id="orderSheetMeta"></div>
-          <div class="record-photo-grid order-sheet-preview-grid" id="orderSheetPreviewGrid"></div>
+          <div class="order-sheet-layout">
+            <div class="record-photo-grid order-sheet-preview-grid" id="orderSheetPreviewGrid"></div>
+            <aside class="order-sheet-history-panel">
+              <h4>舊版本 Order Sheet</h4>
+              <div class="order-sheet-history-list" id="orderSheetHistoryList"></div>
+            </aside>
+          </div>
           <div class="order-sheet-update-actions">
             <button class="secondary-button" id="updateOrderSheetBtn" type="button">更新 Order Sheet（開啟相機）</button>
             <button class="tiny-button" id="clearOrderSheetDraftBtn" type="button" hidden>取消待更新</button>
@@ -96,5 +102,18 @@
     </div>
     <p class="status-text" id="captureStatus">請先選擇已 Check-in 車輛，再為該車加入安裝、維修或保養資料。</p>
   </footer>
+
+  <div class="gallery-lightbox" id="orderSheetLightbox" hidden>
+    <button class="gallery-lightbox-close tiny-button" id="closeOrderSheetLightboxBtn" type="button">關閉</button>
+    <div class="gallery-lightbox-shell">
+      <div class="gallery-lightbox-frame">
+        <img id="orderSheetLightboxImage" alt="Order Sheet 放大檢視">
+      </div>
+      <div class="gallery-lightbox-meta">
+        <strong id="orderSheetLightboxTitle">Order Sheet</strong>
+        <span id="orderSheetLightboxMeta"></span>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

@@ -1189,6 +1189,57 @@ button {
   grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
 }
 
+.order-sheet-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.order-sheet-history-panel {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.8rem;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.order-sheet-history-panel h4 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.order-sheet-history-list {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.order-sheet-history-link {
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  text-align: left;
+  color: var(--accent);
+  text-decoration: underline;
+  background: transparent;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.order-sheet-history-link:hover {
+  color: #ffd176;
+}
+
+.order-sheet-preview-button {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
 .order-sheet-update-actions {
   display: flex;
   align-items: center;
@@ -2053,6 +2104,10 @@ input[type="range"] {
   .editor-sidebar,
   .editor-preview-shell {
     min-height: auto;
+  }
+
+  .order-sheet-layout {
+    grid-template-columns: 1fr;
   }
 }
 
