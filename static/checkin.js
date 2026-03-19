@@ -18,7 +18,6 @@ const refs = {
   vehicleZone: document.querySelector("#vehicleZone"),
   vehiclePreview: document.querySelector("#vehiclePreview"),
   orderSheetInput: document.querySelector("#orderSheetInput"),
-  orderSheetLibraryInput: document.querySelector("#orderSheetLibraryInput"),
   orderSheetZone: document.querySelector("#orderSheetZone"),
   orderSheetPreview: document.querySelector("#orderSheetPreview"),
   brandGrid: document.querySelector("#brandGrid"),
@@ -151,12 +150,23 @@ function getUploadPromptText(target) {
     vehicle: "車輛照",
     orderSheet: "Order Sheet 工作單",
   };
+  if (target === "orderSheet") {
+    return `按一下拍${labels[target] || "相片"}`;
+  }
   return isDirectCameraMode()
     ? `按一下拍${labels[target] || "相片"}`
     : `按一下拍照或上傳${labels[target] || "相片"}`;
 }
 
 function renderUploadActions(target) {
+  if (target === "orderSheet") {
+    return `
+      <div class="upload-action-row">
+        <button class="primary-button upload-action-btn" type="button" data-open-camera="${target}">拍照（只限拍照）</button>
+      </div>
+    `;
+  }
+
   if (!isDirectCameraMode()) {
     return "";
   }
@@ -200,7 +210,6 @@ function getUploadTargetRefs(target) {
     ? {
         zone: refs.orderSheetZone,
         input: refs.orderSheetInput,
-        libraryInput: refs.orderSheetLibraryInput,
         preview: refs.orderSheetPreview,
       }
     : {
@@ -216,7 +225,6 @@ function clearUploadTarget(target) {
     state.orderSheetPhotos.forEach((asset) => revokeDraftAsset(asset));
     state.orderSheetPhotos = [];
     refs.orderSheetInput.value = "";
-    refs.orderSheetLibraryInput.value = "";
     return;
   }
 
@@ -234,13 +242,15 @@ function renderUploadTarget(target) {
     orderSheet: "Order Sheet 工作單",
   };
   targetRefs.zone.classList.toggle("has-preview", targetState.length > 0);
-  targetRefs.input.disabled = targetState.length > 0 || isDirectCameraMode();
+  targetRefs.input.disabled = target === "orderSheet"
+    ? true
+    : (targetState.length > 0 || isDirectCameraMode());
 
   if (!targetState.length) {
     targetRefs.preview.innerHTML = `
       <div class="upload-prompt">
         <strong>${getUploadPromptText(target)}</strong>
-        <small>只可上傳一張${labels[target] || "相片"}。</small>
+        <small>${target === "orderSheet" ? "只可拍照，不可上傳。" : `只可上傳一張${labels[target] || "相片"}。`}</small>
         ${renderUploadActions(target)}
       </div>
     `;
@@ -251,11 +261,13 @@ function renderUploadTarget(target) {
       await openCameraOverlay(target);
     });
 
-    targetRefs.preview.querySelector("[data-open-library]")?.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      targetRefs.libraryInput.click();
-    });
+    if (target === "vehicle") {
+      targetRefs.preview.querySelector("[data-open-library]")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        targetRefs.libraryInput.click();
+      });
+    }
     return;
   }
 
@@ -473,7 +485,7 @@ async function closeCameraOverlay() {
 }
 
 async function openCameraOverlay(target = "vehicle") {
-  if (!isDirectCameraMode()) {
+  if (!isDirectCameraMode() && target !== "orderSheet") {
     return;
   }
 
@@ -635,19 +647,6 @@ function bindEvents() {
     refs.vehicleLibraryInput.value = "";
   });
 
-  refs.orderSheetInput.addEventListener("change", async () => {
-    if (refs.orderSheetInput.files?.length) {
-      await applyUploadFile("orderSheet", refs.orderSheetInput.files[0]);
-    }
-  });
-
-  refs.orderSheetLibraryInput.addEventListener("change", async () => {
-    if (refs.orderSheetLibraryInput.files?.length) {
-      await applyUploadFile("orderSheet", refs.orderSheetLibraryInput.files[0]);
-    }
-    refs.orderSheetLibraryInput.value = "";
-  });
-
   refs.vehicleZone.addEventListener("click", async (event) => {
     if (!isDirectCameraMode() || event.target.closest("button") || state.vehiclePhotos.length > 0) {
       return;
@@ -657,7 +656,7 @@ function bindEvents() {
   });
 
   refs.orderSheetZone.addEventListener("click", async (event) => {
-    if (!isDirectCameraMode() || event.target.closest("button") || state.orderSheetPhotos.length > 0) {
+    if (event.target.closest("button") || state.orderSheetPhotos.length > 0) {
       return;
     }
     event.preventDefault();
