@@ -58,6 +58,8 @@ const state = {
   cameraStream: null,
 };
 
+const CAMERA_OUTPUT_SIZE = 2000;
+
 function createAccessoryEntry() {
   return {
     id: `entry-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
@@ -766,13 +768,25 @@ async function handleCameraCapture() {
     const side = Math.min(width, height);
     const offsetX = Math.floor((width - side) / 2);
     const offsetY = Math.floor((height - side) / 2);
-    refs.cameraCanvas.width = side;
-    refs.cameraCanvas.height = side;
+    refs.cameraCanvas.width = CAMERA_OUTPUT_SIZE;
+    refs.cameraCanvas.height = CAMERA_OUTPUT_SIZE;
     const context = refs.cameraCanvas.getContext("2d");
     if (!context) {
       throw new Error("無法建立拍照畫布。");
     }
-    context.drawImage(refs.cameraVideo, offsetX, offsetY, side, side, 0, 0, side, side);
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
+    context.drawImage(
+      refs.cameraVideo,
+      offsetX,
+      offsetY,
+      side,
+      side,
+      0,
+      0,
+      CAMERA_OUTPUT_SIZE,
+      CAMERA_OUTPUT_SIZE
+    );
     const blob = await new Promise((resolve, reject) => {
       refs.cameraCanvas.toBlob(
         (result) => (result ? resolve(result) : reject(new Error("拍照失敗。"))),
