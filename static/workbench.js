@@ -257,8 +257,8 @@ async function loadImageSource(file) {
     return {
       width: bitmap.width,
       height: bitmap.height,
-      draw(context, sx, sy, side) {
-        context.drawImage(bitmap, sx, sy, side, side, 0, 0, side, side);
+      draw(context, sx, sy, side, outputSide = side) {
+        context.drawImage(bitmap, sx, sy, side, side, 0, 0, outputSide, outputSide);
       },
       close() {
         if (typeof bitmap.close === "function") {
@@ -280,8 +280,8 @@ async function loadImageSource(file) {
     return {
       width: image.naturalWidth,
       height: image.naturalHeight,
-      draw(context, sx, sy, side) {
-        context.drawImage(image, sx, sy, side, side, 0, 0, side, side);
+      draw(context, sx, sy, side, outputSide = side) {
+        context.drawImage(image, sx, sy, side, side, 0, 0, outputSide, outputSide);
       },
       close() {},
     };
@@ -290,22 +290,26 @@ async function loadImageSource(file) {
   }
 }
 
-async function normalizeImageFileToSquare(file, fileName) {
+async function normalizeImageFileToSquare(file, fileName, options = {}) {
   const source = await loadImageSource(file);
 
   try {
     const side = Math.min(source.width, source.height);
     const offsetX = Math.floor((source.width - side) / 2);
     const offsetY = Math.floor((source.height - side) / 2);
+    const targetSize = Number(options?.targetSize || 0);
+    const outputSide = targetSize > 0 ? targetSize : side;
     const canvas = document.createElement("canvas");
-    canvas.width = side;
-    canvas.height = side;
+    canvas.width = outputSide;
+    canvas.height = outputSide;
     const context = canvas.getContext("2d");
     if (!context) {
       throw new Error("無法建立圖片處理 canvas");
     }
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
 
-    source.draw(context, offsetX, offsetY, side);
+    source.draw(context, offsetX, offsetY, side, outputSide);
     const blob = await canvasToBlob(canvas, "image/jpeg", 0.92);
     const normalizedFileName = replaceFileExtension(fileName, ".jpg");
     const normalizedFile = typeof File === "function"
@@ -320,20 +324,20 @@ async function normalizeImageFileToSquare(file, fileName) {
       fileName: normalizedFileName,
       mimeType: "image/jpeg",
       previewUrl: canvas.toDataURL("image/jpeg", 0.92),
-      width: side,
-      height: side,
+      width: outputSide,
+      height: outputSide,
     };
   } finally {
     source.close();
   }
 }
 
-export async function fileToDraftAsset(file) {
+export async function fileToDraftAsset(file, options = {}) {
   const originalFileName = file.name || `capture-${uid()}.jpg`;
   const localId = uid();
 
   try {
-    const normalized = await normalizeImageFileToSquare(file, originalFileName);
+    const normalized = await normalizeImageFileToSquare(file, originalFileName, options);
     return {
       localId,
       file: normalized.file,

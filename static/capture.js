@@ -654,6 +654,10 @@ function renderAccessoryList() {
 }
 
 async function applyAccessoryFile(entry, file) {
+  return applyAccessoryFileWithOptions(entry, file, {});
+}
+
+async function applyAccessoryFileWithOptions(entry, file, options = {}) {
   if (!file) {
     return;
   }
@@ -665,19 +669,27 @@ async function applyAccessoryFile(entry, file) {
   }
 
   setStatus("處理項目相片中...", "");
-  entry.photos = [await fileToDraftAsset(file)];
+  entry.photos = [await fileToDraftAsset(file, {
+    targetSize: options.targetSize || undefined,
+  })];
   renderAccessoryList();
   setStatus("已加入項目相片。", "success");
 }
 
 async function applyOrderSheetUpdateFile(file) {
+  return applyOrderSheetUpdateFileWithOptions(file, {});
+}
+
+async function applyOrderSheetUpdateFileWithOptions(file, options = {}) {
   if (!file) {
     return;
   }
 
   setStatus("處理 Order Sheet 更新相片中...", "");
   clearPendingOrderSheetPhoto();
-  state.pendingOrderSheetPhoto = await fileToDraftAsset(file);
+  state.pendingOrderSheetPhoto = await fileToDraftAsset(file, {
+    targetSize: options.targetSize || undefined,
+  });
   state.pendingOrderSheetCapturedAt = new Date().toISOString();
   renderOrderSheetPanel();
   setStatus("已加入 Order Sheet 更新草稿，按「完成」後會上傳。", "success");
@@ -686,7 +698,11 @@ async function applyOrderSheetUpdateFile(file) {
 async function requestCameraStream() {
   try {
     return await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
+      video: {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 4096 },
+        height: { ideal: 4096 },
+      },
       audio: false,
     });
   } catch (_error) {
@@ -705,6 +721,73 @@ async function stopCameraStream() {
   refs.cameraVideo.srcObject = null;
 }
 
+function supportsImageCapture() {
+  return typeof window.ImageCapture === "function";
+}
+
+function pickNativeCapturedFile() {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment";
+    input.style.position = "fixed";
+    input.style.left = "-9999px";
+    document.body.appendChild(input);
+
+    input.addEventListener("change", () => {
+      const file = input.files?.[0] || null;
+      input.remove();
+      resolve(file);
+    }, { once: true });
+
+    input.click();
+  });
+}
+
+async function captureUsingNativeCamera(target) {
+  const file = await pickNativeCapturedFile();
+  if (!file) {
+    return;
+  }
+
+  if (target?.kind === "orderSheet") {
+    await applyOrderSheetUpdateFileWithOptions(file, { targetSize: CAMERA_OUTPUT_SIZE });
+    return;
+  }
+
+  const entry = state.accessoryEntries.find((record) => record.id === target?.entryId);
+  if (!entry) {
+    setStatus("找不到目前項目，請重新拍照。", "danger");
+    return;
+  }
+  await applyAccessoryFileWithOptions(entry, file, { targetSize: CAMERA_OUTPUT_SIZE });
+}
+
+async function captureHighResBlobFromTrack() {
+  const track = state.cameraStream?.getVideoTracks?.()[0];
+  if (!track || !supportsImageCapture()) {
+    return null;
+  }
+
+  try {
+    const imageCapture = new window.ImageCapture(track);
+    let settings = undefined;
+    if (typeof imageCapture.getPhotoCapabilities === "function") {
+      const capabilities = await imageCapture.getPhotoCapabilities().catch(() => null);
+      if (capabilities?.imageWidth?.max && capabilities?.imageHeight?.max) {
+        settings = {
+          imageWidth: capabilities.imageWidth.max,
+          imageHeight: capabilities.imageHeight.max,
+        };
+      }
+    }
+    return await imageCapture.takePhoto(settings);
+  } catch (_error) {
+    return null;
+  }
+}
+
 async function closeCameraOverlay() {
   refs.cameraOverlay.hidden = true;
   document.body.classList.remove("camera-open");
@@ -714,6 +797,11 @@ async function closeCameraOverlay() {
 
 async function openCameraOverlay(target) {
   if (!isDirectCameraMode()) {
+    return;
+  }
+
+  if (!supportsImageCapture()) {
+    await captureUsingNativeCamera(target);
     return;
   }
 
@@ -756,48 +844,18 @@ async function handleCameraCapture() {
     return;
   }
 
-  const width = refs.cameraVideo.videoWidth;
-  const height = refs.cameraVideo.videoHeight;
-  if (!width || !height) {
-    setStatus("未能取得相機影像，請再試一次。", "danger");
-    return;
-  }
-
   refs.shutterCameraBtn.disabled = true;
   try {
-    const side = Math.min(width, height);
-    const offsetX = Math.floor((width - side) / 2);
-    const offsetY = Math.floor((height - side) / 2);
-    refs.cameraCanvas.width = CAMERA_OUTPUT_SIZE;
-    refs.cameraCanvas.height = CAMERA_OUTPUT_SIZE;
-    const context = refs.cameraCanvas.getContext("2d");
-    if (!context) {
-      throw new Error("無法建立拍照畫布。");
+    const blob = await captureHighResBlobFromTrack();
+    if (!blob) {
+      await closeCameraOverlay();
+      await captureUsingNativeCamera(target);
+      return;
     }
-    context.imageSmoothingEnabled = true;
-    context.imageSmoothingQuality = "high";
-    context.drawImage(
-      refs.cameraVideo,
-      offsetX,
-      offsetY,
-      side,
-      side,
-      0,
-      0,
-      CAMERA_OUTPUT_SIZE,
-      CAMERA_OUTPUT_SIZE
-    );
-    const blob = await new Promise((resolve, reject) => {
-      refs.cameraCanvas.toBlob(
-        (result) => (result ? resolve(result) : reject(new Error("拍照失敗。"))),
-        "image/jpeg",
-        0.92
-      );
-    });
     const file = buildCapturedFile(blob);
     await closeCameraOverlay();
     if (target.kind === "orderSheet") {
-      await applyOrderSheetUpdateFile(file);
+      await applyOrderSheetUpdateFileWithOptions(file, { targetSize: CAMERA_OUTPUT_SIZE });
       return;
     }
     const entry = state.accessoryEntries.find((record) => record.id === target.entryId);
@@ -805,7 +863,7 @@ async function handleCameraCapture() {
       setStatus("找不到目前項目，請重新拍照。", "danger");
       return;
     }
-    await applyAccessoryFile(entry, file);
+    await applyAccessoryFileWithOptions(entry, file, { targetSize: CAMERA_OUTPUT_SIZE });
   } catch (error) {
     setStatus(describeSupabaseError(error), "danger");
   } finally {
