@@ -4,4 +4,5 @@ window.GaragePhotoWorkbenchConfig = {
   supabasePublishableKey: "sb_publishable_EpqyGucwCyIu6LF66V0wPA_Tj8a0eji",
   storageBucket: "garage-originals",
   timezone: "Asia/Hong_Kong",
+  imageTransformEnabled: "false",
 };

@@ -14,6 +14,7 @@ DEFAULTS = {
     "VITE_SUPABASE_PUBLISHABLE_KEY": "",
     "VITE_SUPABASE_STORAGE_BUCKET": "garage-originals",
     "VITE_APP_TIMEZONE": "Asia/Hong_Kong",
+    "VITE_SUPABASE_IMAGE_TRANSFORM_ENABLED": "false",
 }
 
 RUNTIME_KEY_MAP = {
@@ -21,6 +22,7 @@ RUNTIME_KEY_MAP = {
     "VITE_SUPABASE_PUBLISHABLE_KEY": "supabasePublishableKey",
     "VITE_SUPABASE_STORAGE_BUCKET": "storageBucket",
     "VITE_APP_TIMEZONE": "timezone",
+    "VITE_SUPABASE_IMAGE_TRANSFORM_ENABLED": "imageTransformEnabled",
 }
 
 
@@ -78,6 +80,7 @@ window.GaragePhotoWorkbenchConfig = {{
   supabasePublishableKey: "{js_escape(config['VITE_SUPABASE_PUBLISHABLE_KEY'])}",
   storageBucket: "{js_escape(config['VITE_SUPABASE_STORAGE_BUCKET'])}",
   timezone: "{js_escape(config['VITE_APP_TIMEZONE'])}",
+  imageTransformEnabled: "{js_escape(config['VITE_SUPABASE_IMAGE_TRANSFORM_ENABLED'])}",
 }};
 """
     RUNTIME_CONFIG_PATH.write_text(content, encoding="utf-8")

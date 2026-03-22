@@ -1603,12 +1603,14 @@ export async function applyFilterToDate(date, filterId) {
 
 export async function getSignedPhotoUrl(storagePath, transform) {
   const client = assertSupabaseConfigured();
-  const cacheKey = `${storagePath}:${JSON.stringify(transform || {})}`;
+  const enableTransform = appConfig.imageTransformEnabled && Boolean(transform);
+  const effectiveTransform = enableTransform ? transform : null;
+  const cacheKey = `${storagePath}:${JSON.stringify(effectiveTransform || {})}`;
   if (signedUrlCache.has(cacheKey)) {
     return signedUrlCache.get(cacheKey);
   }
 
-  const options = transform ? { transform } : undefined;
+  const options = effectiveTransform ? { transform: effectiveTransform } : undefined;
   const { data, error } = await client.storage
     .from(appConfig.storageBucket)
     .createSignedUrl(storagePath, 3600, options);
