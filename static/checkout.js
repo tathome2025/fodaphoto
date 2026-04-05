@@ -1,6 +1,5 @@
 import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
-  attachThumbFallback,
   describeSupabaseError,
   fetchRecentCheckInSets,
   getSignedPhotoUrlsBatch,
@@ -179,7 +178,7 @@ async function hydrateDetailThumbs(captureSet) {
   if (!pending.length) return;
 
   const paths = pending.map((p) => p.storagePath);
-  const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
   urlMap.forEach((url, path) => state.photoThumbUrls.set(path, url));
 
   refs.checkoutDetailContent.querySelectorAll("[data-photo-path]").forEach((card) => {
@@ -190,7 +189,6 @@ async function hydrateDetailThumbs(captureSet) {
     const frame = card.querySelector(".record-photo-frame");
     if (!frame || frame.querySelector("img")) return;
     frame.innerHTML = `<img src="${url}" alt="相片" loading="lazy">`;
-    attachThumbFallback(frame.querySelector("img"), path);
   });
 }
 
@@ -205,20 +203,13 @@ async function hydrateVehicleThumbs() {
   }
 
   const paths = pendingSets.map((captureSet) => captureSet.vehiclePhotos[0].storagePath);
-  const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
   pendingSets.forEach((captureSet) => {
     const url = urlMap.get(captureSet.vehiclePhotos[0].storagePath) || PHOTO_MISSING_PLACEHOLDER_URL;
     state.vehicleThumbUrls.set(captureSet.id, url);
   });
 
   renderVehicleList();
-
-  refs.checkoutVehicleList.querySelectorAll("[data-select-capture-set]").forEach((button) => {
-    const captureSet = state.checkInSets.find((s) => s.id === button.dataset.selectCaptureSet);
-    const originalPath = captureSet?.vehiclePhotos[0]?.storagePath;
-    const img = button.querySelector("img");
-    attachThumbFallback(img, originalPath);
-  });
 }
 
 async function loadCheckInSets() {
