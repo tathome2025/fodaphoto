@@ -308,7 +308,8 @@ async function hydrateOrderSheetPreviews() {
     if (!image) return;
     const path = card.dataset.orderSheetPath;
     const url = urlMap.get(path);
-    image.src = url || PHOTO_MISSING_PLACEHOLDER_URL;
+    if (url) image.src = url;
+    attachThumbFallback(image, path);
   });
 }
 
@@ -361,19 +362,17 @@ async function hydrateServicePhotoThumbs(captureSet) {
 
   const paths = pending.map((p) => p.storagePath);
   const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
-  urlMap.forEach((url, path) => { if (url) state.servicePhotoThumbUrls.set(path, url); });
+  urlMap.forEach((url, path) => state.servicePhotoThumbUrls.set(path, url));
 
   refs.captureServiceHistoryContent.querySelectorAll("[data-service-photo-path]").forEach((card) => {
     const path = card.dataset.servicePhotoPath;
     if (!path) return;
-    const url = urlMap.get(path);
+    const url = state.servicePhotoThumbUrls.get(path);
+    if (!url) return;
     const frame = card.querySelector(".record-photo-frame");
     if (!frame || frame.querySelector("img")) return;
-    if (!url) {
-      frame.innerHTML = `<img src="${PHOTO_MISSING_PLACEHOLDER_URL}" alt="未有相片">`;
-      return;
-    }
     frame.innerHTML = `<img src="${url}" alt="相片" loading="lazy">`;
+    attachThumbFallback(frame.querySelector("img"), path);
   });
 }
 
