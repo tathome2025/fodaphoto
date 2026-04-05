@@ -613,9 +613,6 @@ function validateBeforeSave() {
   if (!state.brandId || !state.vehicleModel) {
     return "請先選擇品牌並輸入車型。";
   }
-  if (!state.orderSheetPhotos.length) {
-    return "請先加入 Order Sheet 工作單。";
-  }
   return "";
 }
 
