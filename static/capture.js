@@ -42,6 +42,8 @@ const refs = {
   orderSheetLightboxTitle: document.querySelector("#orderSheetLightboxTitle"),
   orderSheetLightboxMeta: document.querySelector("#orderSheetLightboxMeta"),
   currentUserEmail: document.querySelector("#currentUserEmail"),
+  captureServiceHistory: document.querySelector("#captureServiceHistory"),
+  captureServiceHistoryContent: document.querySelector("#captureServiceHistoryContent"),
 };
 
 const state = {
@@ -53,6 +55,7 @@ const state = {
   orderSheetThumbUrls: new Map(),
   orderSheetFullUrls: new Map(),
   orderSheetPhotoById: new Map(),
+  servicePhotoThumbUrls: new Map(),
   pendingOrderSheetPhoto: null,
   pendingOrderSheetCapturedAt: "",
   cameraTarget: null,
@@ -320,6 +323,73 @@ async function hydrateOrderSheetPreviews() {
   }));
 }
 
+function renderServiceHistoryPanel() {
+  const selectedSet = getSelectedCaptureSet();
+  if (!selectedSet || !(selectedSet.accessoryEntries || []).length) {
+    refs.captureServiceHistory.hidden = true;
+    refs.captureServiceHistoryContent.innerHTML = "";
+    return;
+  }
+
+  const entries = selectedSet.accessoryEntries;
+  refs.captureServiceHistoryContent.innerHTML = entries.map((entry) => {
+    const label = entry.itemLabel || entry.itemName || "未分類項目";
+    const notes = entry.notes ? `<p class="accessory-subcopy">${entry.notes}</p>` : "";
+    const photos = (entry.photos || []).map((photo) => {
+      const thumbUrl = state.servicePhotoThumbUrls.get(photo.storagePath);
+      const imgHtml = thumbUrl
+        ? `<img src="${thumbUrl}" alt="${label}" loading="lazy">`
+        : `<div class="vehicle-thumb-placeholder" style="aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;font-size:0.8rem;">載入中…</div>`;
+      return `
+        <div class="record-photo-card" data-service-photo-path="${photo.storagePath || ""}">
+          <div class="record-photo-frame">${imgHtml}</div>
+          ${photo.createdByLabel || photo.createdAt ? `
+          <div class="record-photo-caption">
+            ${photo.createdByLabel ? `<strong>${photo.createdByLabel}</strong>` : ""}
+            ${photo.createdAt ? `<span>${new Date(photo.createdAt).toLocaleString("zh-Hant", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>` : ""}
+          </div>` : ""}
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <div class="accessory-card" style="margin-bottom:0.9rem;">
+        <div class="accessory-head"><h3>${label}</h3></div>
+        ${notes}
+        ${photos ? `<div class="record-photo-grid">${photos}</div>` : ""}
+      </div>
+    `;
+  }).join("");
+
+  refs.captureServiceHistory.hidden = false;
+  hydrateServicePhotoThumbs(selectedSet);
+}
+
+async function hydrateServicePhotoThumbs(captureSet) {
+  const allPhotos = (captureSet.accessoryEntries || []).flatMap((e) => e.photos || []);
+  const pending = allPhotos.filter((p) => p.storagePath && !state.servicePhotoThumbUrls.has(p.storagePath));
+  if (!pending.length) return;
+
+  await Promise.all(pending.map(async (photo) => {
+    try {
+      const url = await getSignedPhotoUrl(photo.storagePath, { width: 400, height: 300 });
+      state.servicePhotoThumbUrls.set(photo.storagePath, url);
+    } catch {
+      state.servicePhotoThumbUrls.set(photo.storagePath, PHOTO_MISSING_PLACEHOLDER_URL);
+    }
+  }));
+
+  refs.captureServiceHistoryContent.querySelectorAll("[data-service-photo-path]").forEach((card) => {
+    const path = card.dataset.servicePhotoPath;
+    if (!path) return;
+    const url = state.servicePhotoThumbUrls.get(path);
+    if (!url) return;
+    const frame = card.querySelector(".record-photo-frame");
+    if (!frame || frame.querySelector("img")) return;
+    frame.innerHTML = `<img src="${url}" alt="相片" loading="lazy">`;
+  });
+}
+
 function renderOrderSheetPanel() {
   const selectedSet = getSelectedCaptureSet();
   if (!selectedSet) {
@@ -413,6 +483,7 @@ function renderOrderSheetPanel() {
   refs.clearOrderSheetDraftBtn.hidden = !state.pendingOrderSheetPhoto;
   bindOrderSheetInteractions();
   hydrateOrderSheetPreviews();
+  renderServiceHistoryPanel();
 }
 
 function bindOrderSheetInteractions() {

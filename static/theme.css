@@ -1288,6 +1288,14 @@ button {
   flex-wrap: wrap;
 }
 
+.capture-service-history {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--line);
+  margin-top: 0.4rem;
+}
+
 .records-shell {
   width: min(1440px, calc(100vw - 2rem));
   margin: 0 auto;
