@@ -1699,6 +1699,20 @@ export async function getSignedPhotoUrlsBatch(storagePaths, { useThumb = false }
   );
 }
 
+export function attachThumbFallback(img, originalStoragePath) {
+  if (!img || !originalStoragePath) return;
+  img.addEventListener("error", async function onThumbError() {
+    img.removeEventListener("error", onThumbError);
+    try {
+      const url = await getSignedPhotoUrl(originalStoragePath);
+      img.addEventListener("error", () => { img.src = PHOTO_MISSING_PLACEHOLDER_URL; }, { once: true });
+      img.src = url;
+    } catch {
+      img.src = PHOTO_MISSING_PLACEHOLDER_URL;
+    }
+  }, { once: true });
+}
+
 export function releaseSignedUrlCache() {
   signedUrlCache.clear();
 }

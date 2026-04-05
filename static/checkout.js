@@ -1,5 +1,6 @@
 import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
+  attachThumbFallback,
   describeSupabaseError,
   fetchRecentCheckInSets,
   getSignedPhotoUrlsBatch,
@@ -189,6 +190,7 @@ async function hydrateDetailThumbs(captureSet) {
     const frame = card.querySelector(".record-photo-frame");
     if (!frame || frame.querySelector("img")) return;
     frame.innerHTML = `<img src="${url}" alt="相片" loading="lazy">`;
+    attachThumbFallback(frame.querySelector("img"), path);
   });
 }
 
@@ -210,6 +212,13 @@ async function hydrateVehicleThumbs() {
   });
 
   renderVehicleList();
+
+  refs.checkoutVehicleList.querySelectorAll("[data-select-capture-set]").forEach((button) => {
+    const captureSet = state.checkInSets.find((s) => s.id === button.dataset.selectCaptureSet);
+    const originalPath = captureSet?.vehiclePhotos[0]?.storagePath;
+    const img = button.querySelector("img");
+    attachThumbFallback(img, originalPath);
+  });
 }
 
 async function loadCheckInSets() {
