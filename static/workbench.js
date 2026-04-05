@@ -965,19 +965,59 @@ export async function fetchDatesWithUploads(year, month) {
   return counts;
 }
 
+const THUMB_MAX_SIZE = 600;
+
+function thumbStoragePath(originalPath) {
+  if (!originalPath || !originalPath.includes("/originals/")) return null;
+  return originalPath.replace("/originals/", "/thumbs/");
+}
+
+async function createThumbnailBlob(file, maxSize = THUMB_MAX_SIZE) {
+  const bitmap = await createImageBitmap(file);
+  try {
+    const scale = Math.min(maxSize / bitmap.width, maxSize / bitmap.height, 1);
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("canvas context unavailable");
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    return canvasToBlob(canvas, "image/jpeg", 0.78);
+  } finally {
+    if (typeof bitmap.close === "function") bitmap.close();
+  }
+}
+
 async function uploadPhotoAsset(userId, captureDate, captureSetId, asset) {
   const client = assertSupabaseConfigured();
   const photoId = uid();
   const extension = fileExtension(asset.fileName, asset.mimeType);
   const storagePath = `${baseStoragePath(userId, captureDate, captureSetId)}/${photoId}.${extension}`;
 
-  const { error } = await client.storage
+  const thumbPath = thumbStoragePath(storagePath);
+
+  // Upload original and thumbnail in parallel
+  const uploadOriginal = client.storage
     .from(appConfig.storageBucket)
     .upload(storagePath, asset.file, {
       cacheControl: "3600",
       contentType: asset.mimeType,
       upsert: false,
     });
+
+  const uploadThumb = thumbPath
+    ? createThumbnailBlob(asset.file).then((thumbBlob) =>
+        client.storage.from(appConfig.storageBucket).upload(thumbPath, thumbBlob, {
+          cacheControl: "86400",
+          contentType: "image/jpeg",
+          upsert: false,
+        })
+      ).catch(() => null) // thumbnail failure is non-fatal
+    : Promise.resolve(null);
+
+  const [{ error }] = await Promise.all([uploadOriginal, uploadThumb]);
 
   if (error) {
     throw error;
@@ -1629,10 +1669,17 @@ export async function getSignedPhotoUrl(storagePath, transform) {
   return data.signedUrl;
 }
 
-export async function getSignedPhotoUrlsBatch(storagePaths) {
+export async function getSignedPhotoUrlsBatch(storagePaths, { useThumb = false } = {}) {
   const client = assertSupabaseConfigured();
   const cacheKey = (p) => `${p}:{}`;
-  const missing = storagePaths.filter((p) => p && !signedUrlCache.has(cacheKey(p)));
+
+  // Derive resolved paths (thumb or original)
+  const resolved = storagePaths.map((p) => {
+    if (!useThumb) return p;
+    return thumbStoragePath(p) || p;
+  });
+
+  const missing = resolved.filter((p) => p && !signedUrlCache.has(cacheKey(p)));
 
   if (missing.length) {
     const { data } = await client.storage
@@ -1643,8 +1690,12 @@ export async function getSignedPhotoUrlsBatch(storagePaths) {
     });
   }
 
+  // Return map keyed by original storagePath for caller convenience
   return new Map(
-    storagePaths.filter(Boolean).map((p) => [p, signedUrlCache.get(cacheKey(p)) || PHOTO_MISSING_PLACEHOLDER_URL])
+    storagePaths.filter(Boolean).map((p, i) => [
+      p,
+      signedUrlCache.get(cacheKey(resolved[i])) || PHOTO_MISSING_PLACEHOLDER_URL,
+    ])
   );
 }
 

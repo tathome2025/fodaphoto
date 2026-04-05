@@ -300,7 +300,7 @@ async function hydrateOrderSheetPreviews() {
   if (!cards.length) return;
 
   const paths = cards.map((c) => c.dataset.orderSheetPath).filter(Boolean);
-  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
 
   cards.forEach((card) => {
     const image = card.querySelector("img");
@@ -358,7 +358,7 @@ async function hydrateServicePhotoThumbs(captureSet) {
   if (!pending.length) return;
 
   const paths = pending.map((p) => p.storagePath);
-  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
   urlMap.forEach((url, path) => state.servicePhotoThumbUrls.set(path, url));
 
   refs.captureServiceHistoryContent.querySelectorAll("[data-service-photo-path]").forEach((card) => {
@@ -506,7 +506,7 @@ async function hydrateVehicleThumbs() {
   }
 
   const paths = pendingSets.map((captureSet) => captureSet.vehiclePhotos[0].storagePath);
-  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
   pendingSets.forEach((captureSet) => {
     const url = urlMap.get(captureSet.vehiclePhotos[0].storagePath) || PHOTO_MISSING_PLACEHOLDER_URL;
     state.vehicleThumbUrls.set(captureSet.id, url);
