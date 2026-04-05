@@ -180,17 +180,19 @@ async function hydrateDetailThumbs(captureSet) {
 
   const paths = pending.map((p) => p.storagePath);
   const urlMap = await getSignedPhotoUrlsBatch(paths, { useThumb: true });
-  urlMap.forEach((url, path) => state.photoThumbUrls.set(path, url));
+  urlMap.forEach((url, path) => { if (url) state.photoThumbUrls.set(path, url); });
 
   refs.checkoutDetailContent.querySelectorAll("[data-photo-path]").forEach((card) => {
     const path = card.dataset.photoPath;
     if (!path) return;
-    const url = state.photoThumbUrls.get(path);
-    if (!url) return;
+    const url = urlMap.get(path);
     const frame = card.querySelector(".record-photo-frame");
     if (!frame || frame.querySelector("img")) return;
+    if (!url) {
+      frame.innerHTML = `<img src="${PHOTO_MISSING_PLACEHOLDER_URL}" alt="未有相片">`;
+      return;
+    }
     frame.innerHTML = `<img src="${url}" alt="相片" loading="lazy">`;
-    attachThumbFallback(frame.querySelector("img"), path);
   });
 }
 

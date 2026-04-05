@@ -1669,32 +1669,46 @@ export async function getSignedPhotoUrl(storagePath, transform) {
   return data.signedUrl;
 }
 
-export async function getSignedPhotoUrlsBatch(storagePaths, { useThumb = false } = {}) {
+async function fetchSignedUrlsBatch(paths) {
   const client = assertSupabaseConfigured();
   const cacheKey = (p) => `${p}:{}`;
-
-  // Derive resolved paths (thumb or original)
-  const resolved = storagePaths.map((p) => {
-    if (!useThumb) return p;
-    return thumbStoragePath(p) || p;
-  });
-
-  const missing = resolved.filter((p) => p && !signedUrlCache.has(cacheKey(p)));
-
+  const missing = paths.filter((p) => p && !signedUrlCache.has(cacheKey(p)));
   if (missing.length) {
     const { data } = await client.storage
       .from(appConfig.storageBucket)
       .createSignedUrls(missing, 3600);
-    (data || []).forEach(({ path, signedUrl }) => {
-      if (path && signedUrl) signedUrlCache.set(cacheKey(path), signedUrl);
+    // Use index-based matching — item.path from Supabase may differ from the sent path
+    (data || []).forEach((item, index) => {
+      const sentPath = missing[index];
+      if (sentPath && item?.signedUrl) signedUrlCache.set(cacheKey(sentPath), item.signedUrl);
     });
   }
+  return (p) => signedUrlCache.get(cacheKey(p)) || null;
+}
 
-  // Return map keyed by original storagePath for caller convenience
+export async function getSignedPhotoUrlsBatch(storagePaths, { useThumb = false } = {}) {
+  const filtered = storagePaths.filter(Boolean);
+  if (!filtered.length) return new Map();
+
+  if (!useThumb) {
+    const lookup = await fetchSignedUrlsBatch(filtered);
+    return new Map(filtered.map((p) => [p, lookup(p)]));
+  }
+
+  // Try thumb paths first
+  const thumbPaths = filtered.map((p) => thumbStoragePath(p) || p);
+  const thumbLookup = await fetchSignedUrlsBatch(thumbPaths);
+
+  // For paths where thumb signing failed, fall back to original path
+  const fallbackOriginals = filtered.filter((p, i) => !thumbLookup(thumbPaths[i]));
+  const origLookup = fallbackOriginals.length
+    ? await fetchSignedUrlsBatch(fallbackOriginals)
+    : () => null;
+
   return new Map(
-    storagePaths.filter(Boolean).map((p, i) => [
+    filtered.map((p, i) => [
       p,
-      signedUrlCache.get(cacheKey(resolved[i])) || PHOTO_MISSING_PLACEHOLDER_URL,
+      thumbLookup(thumbPaths[i]) || origLookup(p) || null,
     ])
   );
 }
