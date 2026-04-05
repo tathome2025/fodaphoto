@@ -13,10 +13,10 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.56.0",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
-    "sharp": "^0.34.5",
     "vite": "^7.1.4"
   }
 }

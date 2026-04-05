@@ -2222,3 +2222,39 @@ input[type="range"] {
     padding: 0.8rem;
   }
 }
+
+.thumb-progress-bar-track {
+  height: 0.55rem;
+  border-radius: 99px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.thumb-progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent, #4f8ef7);
+  transition: width 0.3s ease;
+}
+
+.thumb-result-grid {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.thumb-result-cell {
+  display: grid;
+  gap: 0.2rem;
+  text-align: center;
+}
+
+.thumb-result-cell strong {
+  font-size: 1.6rem;
+}
+
+.thumb-result-cell span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}

@@ -27,6 +27,7 @@ const refs = {
   galleryLink: document.querySelector("#galleryLink"),
   usersLink: document.querySelector("#usersLink"),
   editLink: document.querySelector("#editLink"),
+  adminLink: document.querySelector("#adminLink"),
 };
 
 function withTimeout(promise, ms, message) {
@@ -79,6 +80,9 @@ function syncPageAccess(user) {
   }
   if (refs.editLink) {
     refs.editLink.hidden = !isSuperAdmin;
+  }
+  if (refs.adminLink) {
+    refs.adminLink.hidden = !isSuperAdmin;
   }
 }
 

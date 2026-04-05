@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>管理工具 | FODA工場流程</title>
+  <link rel="stylesheet" href="../static/theme.css">
+  <script src="../static/runtime-config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" src="../static/admin.js"></script>
+</head>
+<body class="page-capture">
+  <header class="topbar">
+    <a class="back-link" href="../">← 返回首頁</a>
+    <span class="account-pill">使用帳號：<strong id="currentUserEmail">-</strong></span>
+  </header>
+
+  <main class="capture-shell">
+    <section class="capture-hero">
+      <p class="eyebrow">Superadmin</p>
+      <h1>管理工具</h1>
+    </section>
+
+    <section class="capture-card">
+      <div class="section-head">
+        <div>
+          <h2>補生成相片縮圖</h2>
+          <p>為所有未有縮圖的舊相片生成 600px 縮圖，加快載入速度。每次處理 5 張，完成後自動繼續。</p>
+        </div>
+      </div>
+
+      <div id="thumbProgress" hidden>
+        <p class="status-text" id="thumbProgressText">準備中…</p>
+        <div class="thumb-progress-bar-track">
+          <div class="thumb-progress-bar-fill" id="thumbProgressFill" style="width:0%"></div>
+        </div>
+        <p class="muted-copy" id="thumbProgressDetail"></p>
+      </div>
+
+      <div id="thumbResult" hidden>
+        <div class="thumb-result-grid">
+          <div class="thumb-result-cell">
+            <strong id="thumbCreated">0</strong>
+            <span>新生成</span>
+          </div>
+          <div class="thumb-result-cell">
+            <strong id="thumbSkipped">0</strong>
+            <span>已跳過</span>
+          </div>
+          <div class="thumb-result-cell">
+            <strong id="thumbFailed">0</strong>
+            <span>失敗</span>
+          </div>
+        </div>
+        <p class="status-text is-success" id="thumbResultMsg"></p>
+      </div>
+
+      <div class="actionbar-row" style="padding-top:0.5rem;">
+        <button class="primary-button" id="startThumbBtn" type="button">開始生成縮圖</button>
+      </div>
+      <p class="status-text" id="thumbStatus"></p>
+    </section>
+  </main>
+</body>
+</html>

@@ -20,6 +20,7 @@ export default defineConfig({
         users: resolve(__dirname, "users/index.html"),
         edit: resolve(__dirname, "edit/index.html"),
         detail: resolve(__dirname, "edit/detail.html"),
+        admin: resolve(__dirname, "admin/index.html"),
       },
     },
   },
