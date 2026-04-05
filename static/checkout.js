@@ -2,10 +2,9 @@ import { requireAuthorizedPage } from "./supabase-browser.js";
 import {
   describeSupabaseError,
   fetchRecentCheckInSets,
-  getSignedPhotoUrl,
+  getSignedPhotoUrlsBatch,
   markCaptureSetServiceCompleted,
   PHOTO_MISSING_PLACEHOLDER_URL,
-  shouldUseMissingPhotoPlaceholder,
 } from "./workbench.js";
 
 const refs = {
@@ -178,25 +177,17 @@ async function hydrateDetailThumbs(captureSet) {
   const pending = allPhotos.filter((p) => p.storagePath && !state.photoThumbUrls.has(p.storagePath));
   if (!pending.length) return;
 
-  await Promise.all(pending.map(async (photo) => {
-    try {
-      const url = await getSignedPhotoUrl(photo.storagePath, { width: 400, height: 300 });
-      state.photoThumbUrls.set(photo.storagePath, url);
-    } catch {
-      state.photoThumbUrls.set(photo.storagePath, PHOTO_MISSING_PLACEHOLDER_URL);
-    }
-  }));
+  const paths = pending.map((p) => p.storagePath);
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  urlMap.forEach((url, path) => state.photoThumbUrls.set(path, url));
 
-  // Patch img elements in-place without full re-render
   refs.checkoutDetailContent.querySelectorAll("[data-photo-path]").forEach((card) => {
     const path = card.dataset.photoPath;
     if (!path) return;
     const url = state.photoThumbUrls.get(path);
     if (!url) return;
     const frame = card.querySelector(".record-photo-frame");
-    if (!frame) return;
-    const existing = frame.querySelector("img");
-    if (existing) return; // already loaded
+    if (!frame || frame.querySelector("img")) return;
     frame.innerHTML = `<img src="${url}" alt="相片" loading="lazy">`;
   });
 }
@@ -211,20 +202,12 @@ async function hydrateVehicleThumbs() {
     return;
   }
 
-  await Promise.all(pendingSets.map(async (captureSet) => {
-    try {
-      const thumbUrl = await getSignedPhotoUrl(captureSet.vehiclePhotos[0].storagePath, {
-        width: 360,
-        height: 270,
-      });
-      state.vehicleThumbUrls.set(captureSet.id, thumbUrl);
-    } catch (error) {
-      state.vehicleThumbUrls.set(
-        captureSet.id,
-        shouldUseMissingPhotoPlaceholder(error) ? PHOTO_MISSING_PLACEHOLDER_URL : ""
-      );
-    }
-  }));
+  const paths = pendingSets.map((captureSet) => captureSet.vehiclePhotos[0].storagePath);
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  pendingSets.forEach((captureSet) => {
+    const url = urlMap.get(captureSet.vehiclePhotos[0].storagePath) || PHOTO_MISSING_PLACEHOLDER_URL;
+    state.vehicleThumbUrls.set(captureSet.id, url);
+  });
 
   renderVehicleList();
 }

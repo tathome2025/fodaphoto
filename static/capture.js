@@ -8,6 +8,7 @@ import {
   fileToDraftAsset,
   formatDateTime,
   getSignedPhotoUrl,
+  getSignedPhotoUrlsBatch,
   PHOTO_MISSING_PLACEHOLDER_URL,
   revokeDraftAsset,
   shouldUseMissingPhotoPlaceholder,
@@ -296,31 +297,17 @@ function renderCheckInVehicleList() {
 
 async function hydrateOrderSheetPreviews() {
   const cards = [...refs.orderSheetPreviewGrid.querySelectorAll("[data-order-sheet-path]")];
-  await Promise.all(cards.map(async (card) => {
+  if (!cards.length) return;
+
+  const paths = cards.map((c) => c.dataset.orderSheetPath).filter(Boolean);
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
+
+  cards.forEach((card) => {
     const image = card.querySelector("img");
-    if (!image) {
-      return;
-    }
-    const photoId = card.dataset.orderSheetPhotoId || "";
-    if (photoId && state.orderSheetThumbUrls.has(photoId)) {
-      image.src = state.orderSheetThumbUrls.get(photoId);
-      return;
-    }
-    try {
-      const signed = await getSignedPhotoUrl(card.dataset.orderSheetPath, {
-        width: 720,
-        height: 540,
-      });
-      if (photoId) {
-        state.orderSheetThumbUrls.set(photoId, signed);
-      }
-      image.src = signed;
-    } catch (error) {
-      image.src = shouldUseMissingPhotoPlaceholder(error)
-        ? PHOTO_MISSING_PLACEHOLDER_URL
-        : "";
-    }
-  }));
+    if (!image) return;
+    const url = urlMap.get(card.dataset.orderSheetPath);
+    if (url) image.src = url;
+  });
 }
 
 function renderServiceHistoryPanel() {
@@ -370,14 +357,9 @@ async function hydrateServicePhotoThumbs(captureSet) {
   const pending = allPhotos.filter((p) => p.storagePath && !state.servicePhotoThumbUrls.has(p.storagePath));
   if (!pending.length) return;
 
-  await Promise.all(pending.map(async (photo) => {
-    try {
-      const url = await getSignedPhotoUrl(photo.storagePath, { width: 400, height: 300 });
-      state.servicePhotoThumbUrls.set(photo.storagePath, url);
-    } catch {
-      state.servicePhotoThumbUrls.set(photo.storagePath, PHOTO_MISSING_PLACEHOLDER_URL);
-    }
-  }));
+  const paths = pending.map((p) => p.storagePath);
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  urlMap.forEach((url, path) => state.servicePhotoThumbUrls.set(path, url));
 
   refs.captureServiceHistoryContent.querySelectorAll("[data-service-photo-path]").forEach((card) => {
     const path = card.dataset.servicePhotoPath;
@@ -523,20 +505,12 @@ async function hydrateVehicleThumbs() {
     return;
   }
 
-  await Promise.all(pendingSets.map(async (captureSet) => {
-    try {
-      const thumbUrl = await getSignedPhotoUrl(captureSet.vehiclePhotos[0].storagePath, {
-        width: 360,
-        height: 270,
-      });
-      state.vehicleThumbUrls.set(captureSet.id, thumbUrl);
-    } catch (error) {
-      state.vehicleThumbUrls.set(
-        captureSet.id,
-        shouldUseMissingPhotoPlaceholder(error) ? PHOTO_MISSING_PLACEHOLDER_URL : ""
-      );
-    }
-  }));
+  const paths = pendingSets.map((captureSet) => captureSet.vehiclePhotos[0].storagePath);
+  const urlMap = await getSignedPhotoUrlsBatch(paths);
+  pendingSets.forEach((captureSet) => {
+    const url = urlMap.get(captureSet.vehiclePhotos[0].storagePath) || PHOTO_MISSING_PLACEHOLDER_URL;
+    state.vehicleThumbUrls.set(captureSet.id, url);
+  });
 
   renderCheckInVehicleList();
 }

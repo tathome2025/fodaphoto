@@ -853,8 +853,10 @@ async function hydrateCaptureSetRows(sets, lookups) {
   }
 
   const photoIds = (photos || []).map((photo) => photo.id);
-  const currentEdits = await fetchCurrentEditsByPhotoIds(photoIds);
-  const photoServiceItemMap = await fetchPhotoServiceItemsMap(photoIds);
+  const [currentEdits, photoServiceItemMap] = await Promise.all([
+    fetchCurrentEditsByPhotoIds(photoIds),
+    fetchPhotoServiceItemsMap(photoIds),
+  ]);
 
   return sets.map((captureSet) => {
     const base = {
@@ -882,13 +884,15 @@ async function hydrateCaptureSetRows(sets, lookups) {
 
 export async function fetchCaptureSetsByDate(date) {
   const client = assertSupabaseConfigured();
-  const lookups = await loadLookups();
 
-  const { data: sets, error: setError } = await client
-    .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
-    .eq("capture_date", date)
-    .order("created_at", { ascending: false });
+  const [lookups, { data: sets, error: setError }] = await Promise.all([
+    loadLookups(),
+    client
+      .from("capture_sets")
+      .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
+      .eq("capture_date", date)
+      .order("created_at", { ascending: false }),
+  ]);
 
   if (setError) {
     throw setError;
@@ -899,14 +903,16 @@ export async function fetchCaptureSetsByDate(date) {
 
 export async function fetchRecentCheckInSets(limit = 24) {
   const client = assertSupabaseConfigured();
-  const lookups = await loadLookups();
 
-  const { data: sets, error } = await client
-    .from("capture_sets")
-    .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
-    .is("service_completed_at", null)
-    .order("updated_at", { ascending: false })
-    .limit(limit);
+  const [lookups, { data: sets, error }] = await Promise.all([
+    loadLookups(),
+    client
+      .from("capture_sets")
+      .select("id, reference, capture_date, notes, brand_id, vehicle_model, created_at, created_by, created_by_label, service_completed_at, service_completed_by, service_completed_by_label, updated_at")
+      .is("service_completed_at", null)
+      .order("updated_at", { ascending: false })
+      .limit(limit),
+  ]);
 
   if (error) {
     throw error;
@@ -1621,6 +1627,25 @@ export async function getSignedPhotoUrl(storagePath, transform) {
 
   signedUrlCache.set(cacheKey, data.signedUrl);
   return data.signedUrl;
+}
+
+export async function getSignedPhotoUrlsBatch(storagePaths) {
+  const client = assertSupabaseConfigured();
+  const cacheKey = (p) => `${p}:{}`;
+  const missing = storagePaths.filter((p) => p && !signedUrlCache.has(cacheKey(p)));
+
+  if (missing.length) {
+    const { data } = await client.storage
+      .from(appConfig.storageBucket)
+      .createSignedUrls(missing, 3600);
+    (data || []).forEach(({ path, signedUrl }) => {
+      if (path && signedUrl) signedUrlCache.set(cacheKey(path), signedUrl);
+    });
+  }
+
+  return new Map(
+    storagePaths.filter(Boolean).map((p) => [p, signedUrlCache.get(cacheKey(p)) || PHOTO_MISSING_PLACEHOLDER_URL])
+  );
 }
 
 export function releaseSignedUrlCache() {
