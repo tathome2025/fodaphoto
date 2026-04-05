@@ -1241,20 +1241,44 @@ button {
 }
 
 #orderSheetLightbox .order-sheet-lightbox-frame {
+  position: relative;
+  overflow: hidden;
+  max-height: min(82vh, 1000px);
+}
+
+#orderSheetLightbox .order-sheet-lightbox-frame.is-full-size {
   overflow: auto;
   width: min(96vw, 1400px);
   max-width: none;
-  max-height: min(82vh, 1000px);
   overscroll-behavior: contain;
 }
 
 #orderSheetLightbox #orderSheetLightboxImage {
   display: block;
+  width: 100%;
+  max-height: min(82vh, 1000px);
+  object-fit: contain;
+}
+
+#orderSheetLightbox .order-sheet-lightbox-frame.is-full-size #orderSheetLightboxImage {
   width: auto;
   height: auto;
   max-width: none;
   max-height: none;
   object-fit: initial;
+}
+
+.order-sheet-fullsize-btn {
+  position: absolute;
+  bottom: 0.6rem;
+  right: 0.6rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+  background: rgba(21, 24, 28, 0.88);
+  font-size: 0.78rem;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .order-sheet-update-actions {

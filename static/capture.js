@@ -38,6 +38,7 @@ const refs = {
   orderSheetLightbox: document.querySelector("#orderSheetLightbox"),
   closeOrderSheetLightboxBtn: document.querySelector("#closeOrderSheetLightboxBtn"),
   orderSheetLightboxImage: document.querySelector("#orderSheetLightboxImage"),
+  orderSheetFullSizeBtn: document.querySelector("#orderSheetFullSizeBtn"),
   orderSheetLightboxTitle: document.querySelector("#orderSheetLightboxTitle"),
   orderSheetLightboxMeta: document.querySelector("#orderSheetLightboxMeta"),
   currentUserEmail: document.querySelector("#currentUserEmail"),
@@ -216,6 +217,8 @@ async function openOrderSheetLightboxByPath(storagePath, title, meta) {
 
 function closeOrderSheetLightbox() {
   refs.orderSheetLightbox.hidden = true;
+  refs.orderSheetLightboxImage.closest(".order-sheet-lightbox-frame").classList.remove("is-full-size");
+  refs.orderSheetFullSizeBtn.textContent = "原始大小";
 }
 
 function resetAccessoryEntries() {
@@ -1001,6 +1004,11 @@ function bindEvents() {
     }
   });
   refs.closeOrderSheetLightboxBtn.addEventListener("click", closeOrderSheetLightbox);
+  refs.orderSheetFullSizeBtn.addEventListener("click", () => {
+    const frame = refs.orderSheetLightboxImage.closest(".order-sheet-lightbox-frame");
+    const isFullSize = frame.classList.toggle("is-full-size");
+    refs.orderSheetFullSizeBtn.textContent = isFullSize ? "縮小適應" : "原始大小";
+  });
   refs.orderSheetLightbox.addEventListener("click", (event) => {
     if (event.target === refs.orderSheetLightbox) {
       closeOrderSheetLightbox();
