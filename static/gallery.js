@@ -24,6 +24,7 @@ const refs = {
   galleryMeta: document.querySelector("#galleryMeta"),
   galleryCountChip: document.querySelector("#galleryCountChip"),
   gallerySelectedChip: document.querySelector("#gallerySelectedChip"),
+  downloadSelectedBtn: document.querySelector("#downloadSelectedBtn"),
   deleteSelectedBtn: document.querySelector("#deleteSelectedBtn"),
   galleryStatus: document.querySelector("#galleryStatus"),
   galleryDateList: document.querySelector("#galleryDateList"),
@@ -57,6 +58,9 @@ function syncSelectionSummary() {
   const count = selectedCount();
   if (refs.gallerySelectedChip) {
     refs.gallerySelectedChip.textContent = count ? `已選 ${count} 張` : "未選取相片";
+  }
+  if (refs.downloadSelectedBtn) {
+    refs.downloadSelectedBtn.disabled = count === 0;
   }
   if (refs.deleteSelectedBtn) {
     refs.deleteSelectedBtn.disabled = count === 0;
@@ -218,6 +222,60 @@ async function deletePhotosByIds(photoIds) {
   }
 }
 
+function downloadBlob(blob, fileName) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function sanitizeFileName(name) {
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim() || "file";
+}
+
+async function downloadSelectedPhotos() {
+  const selected = state.photos.filter((p) => state.selectedPhotoIds.has(p.id));
+  if (!selected.length) {
+    setStatus("請先選取相片。", "danger");
+    return;
+  }
+
+  refs.downloadSelectedBtn.disabled = true;
+  setStatus(`正在打包 ${selected.length} 張原圖...`, "");
+
+  try {
+    const zip = new window.JSZip();
+    let done = 0;
+
+    for (const photo of selected) {
+      const url = await getSignedPhotoUrl(photo.storagePath);
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`下載失敗: ${photo.fileName}`);
+      const blob = await resp.blob();
+
+      const ext = photo.mimeType === "image/png" ? "png" : "jpg";
+      const vehicle = photoVehicleLabel(photo);
+      const work = photoWorkLabel(photo);
+      const name = sanitizeFileName(`${vehicle}_${work}_${photo.fileName || photo.id}.${ext}`);
+      zip.file(name, blob);
+
+      done += 1;
+      setStatus(`正在打包 ${done} / ${selected.length} 張原圖...`, "");
+    }
+
+    const archive = await zip.generateAsync({ type: "blob" });
+    const today = new Date().toISOString().slice(0, 10);
+    downloadBlob(archive, `gallery-originals-${today}.zip`);
+    setStatus(`已開始下載 ${selected.length} 張原圖壓縮包。`, "success");
+  } catch (error) {
+    setStatus(describeSupabaseError(error), "danger");
+  } finally {
+    syncSelectionSummary();
+  }
+}
+
 async function hydrateThumbnails() {
   const frames = [...refs.galleryDateList.querySelectorAll("[data-photo-path]")];
   if (!frames.length) {
@@ -361,6 +419,9 @@ function bindEvents() {
     if (event.key === "Escape" && !refs.galleryLightbox.hidden) {
       closeLightbox();
     }
+  });
+  refs.downloadSelectedBtn.addEventListener("click", async () => {
+    await downloadSelectedPhotos();
   });
   refs.deleteSelectedBtn.addEventListener("click", async () => {
     await deletePhotosByIds([...state.selectedPhotoIds]);

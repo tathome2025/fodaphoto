@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="../static/theme.css">
   <script src="../static/runtime-config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script type="module" src="../static/gallery.js"></script>
 </head>
 <body class="page-gallery">
@@ -30,6 +31,7 @@
         <div class="toolbar-row gallery-toolbar">
           <span class="filter-chip" id="galleryCountChip">0 張相片</span>
           <span class="filter-chip" id="gallerySelectedChip">未選取相片</span>
+          <button class="secondary-button" id="downloadSelectedBtn" type="button" disabled>下載已選原圖</button>
           <button class="secondary-button" id="deleteSelectedBtn" type="button" disabled>刪除已選相片</button>
           <p class="status-text" id="galleryStatus">正在載入全部圖片...</p>
         </div>
